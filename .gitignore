@@ -1,0 +1,12 @@
+# Durability disk store (Boundary 2b) — the relay mirrors irreplaceable
+# PERSONAL FINANCIAL DATA here (ledger, journal, predictions, goals,
+# portfolio). This must NEVER be committed. Constitution Article 7.
+data/
+
+# Backup exports the user may drop in the project root
+jarvis-backup-*.json
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp

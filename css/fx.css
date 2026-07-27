@@ -1,0 +1,134 @@
+/* ============================================================
+   J.A.R.V.I.S — motion & effects layer
+   ============================================================ */
+
+/* ---------------- keyframes ---------------- */
+@keyframes spin{ to{ transform:rotate(360deg); } }
+@keyframes corePulse{ 0%,100%{ transform:scale(1); opacity:1; } 50%{ transform:scale(.86); opacity:.85; } }
+@keyframes sheenText{ 0%{ background-position:0% 0; } 100%{ background-position:-200% 0; } }
+@keyframes fadeUp{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+@keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes viewIn{ from{ opacity:0; transform:translateY(16px) scale(.995); filter:blur(4px); } to{ opacity:1; transform:none; filter:none; } }
+@keyframes msgIn{ from{ opacity:0; transform:translateY(10px) scale(.96); } to{ opacity:1; transform:none; } }
+@keyframes toastIn{ from{ opacity:0; transform:translateX(60px) scale(.9); } to{ opacity:1; transform:none; } }
+@keyframes toastOut{ to{ opacity:0; transform:translateX(60px) scale(.9); } }
+@keyframes modalIn{ from{ opacity:0; transform:translateY(26px) scale(.94); } to{ opacity:1; transform:none; } }
+@keyframes marquee{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+@keyframes blink{ 50%{ opacity:0; } }
+@keyframes shimmer{ from{ background-position:200% 0; } to{ background-position:-200% 0; } }
+@keyframes scan{ 0%{ transform:translateY(-240px); } 55%,100%{ transform:translateY(115vh); } }
+@keyframes auroraDrift{
+  from{ transform:translate(0,0) scale(1); }
+  to{ transform:translate(6vw, -4vh) scale(1.15); }
+}
+@keyframes softPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.55; } }
+@keyframes alertPulse{
+  0%,100%{ box-shadow:0 0 0 0 rgba(255,107,122,.5); }
+  50%{ box-shadow:0 0 0 8px rgba(255,107,122,0); }
+}
+@keyframes eqBar{ 0%,100%{ transform:scaleY(.4); } 50%{ transform:scaleY(1.6); } }
+@keyframes ripple{ to{ transform:scale(3.2); opacity:0; } }
+@keyframes floatY{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
+@keyframes glowSweep{
+  0%{ transform:translateX(-130%) skewX(-18deg); }
+  100%{ transform:translateX(230%) skewX(-18deg); }
+}
+@keyframes popIn{ from{ opacity:0; transform:scale(.7); } to{ opacity:1; transform:scale(1); } }
+@keyframes confettiFall{
+  0%{ transform:translateY(-10vh) rotate(0turn); opacity:1; }
+  100%{ transform:translateY(110vh) rotate(3turn); opacity:.2; }
+}
+@keyframes borderRun{
+  0%{ background-position:0% 50%; }
+  100%{ background-position:200% 50%; }
+}
+
+/* ---------------- scroll reveal ---------------- */
+.reveal{ opacity:0; transform:translateY(22px); transition:opacity .7s var(--ease-out), transform .7s var(--ease-out); transition-delay:var(--d, 0ms); }
+.reveal.in{ opacity:1; transform:none; }
+
+/* ---------------- 3D tilt (JS sets --rx / --ry / --gx / --gy) ---------------- */
+.tilt{
+  transform-style:preserve-3d;
+  transform:perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition:transform .25s var(--ease-out);
+  will-change:transform;
+}
+.tilt.tilting{ transition:transform .06s linear; }
+.tilt::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:1;
+  background:radial-gradient(420px circle at var(--gx,50%) var(--gy,50%), rgba(56,225,255,.09), transparent 45%);
+  opacity:0; transition:opacity .35s ease;
+}
+.tilt:hover::before{ opacity:1; }
+
+/* ---------------- sheen sweep on hover ---------------- */
+.sheen{ position:relative; overflow:hidden; }
+.sheen::after{
+  content:""; position:absolute; top:-20%; bottom:-20%; width:34%; left:0; z-index:1; pointer-events:none;
+  background:linear-gradient(105deg, transparent, rgba(180,235,255,.09) 45%, rgba(180,235,255,.16) 50%, rgba(180,235,255,.09) 55%, transparent);
+  transform:translateX(-130%) skewX(-18deg);
+  opacity:0;
+}
+.sheen:hover::after{ animation:glowSweep .9s var(--ease-out); opacity:1; }
+
+/* ---------------- animated running border (hero cards) ---------------- */
+.pf-hero{ position:relative; }
+.pf-hero::after{
+  content:""; position:absolute; inset:-1px; border-radius:inherit; padding:1px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(56,225,255,.7), rgba(255,209,102,.55), transparent) 0 0/200% 100%;
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+  animation:borderRun 5s linear infinite;
+  opacity:.7;
+}
+
+/* ---------------- confetti (party protocol) ---------------- */
+.confetti{ position:fixed; top:-4vh; z-index:var(--z-toast); width:9px; height:14px; border-radius:2px; pointer-events:none; animation:confettiFall var(--dur,3s) linear forwards; }
+
+/* ---------------- number glow flash on update ---------------- */
+.flash-up{ animation:flashUp .8s ease; }
+.flash-dn{ animation:flashDn .8s ease; }
+@keyframes flashUp{ 0%{ color:var(--green); text-shadow:0 0 18px rgba(61,220,151,.8); } }
+@keyframes flashDn{ 0%{ color:var(--red); text-shadow:0 0 18px rgba(255,107,122,.8); } }
+
+/* ---------------- boot stars ---------------- */
+.boot-stars{ position:absolute; inset:0; overflow:hidden; }
+.boot-stars::before, .boot-stars::after{
+  content:""; position:absolute; inset:-50%;
+  background-image:
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(160,220,255,.8), transparent 100%),
+    radial-gradient(1px 1px at 60% 70%, rgba(160,220,255,.6), transparent 100%),
+    radial-gradient(2px 2px at 80% 20%, rgba(56,225,255,.7), transparent 100%),
+    radial-gradient(1px 1px at 35% 85%, rgba(160,220,255,.5), transparent 100%),
+    radial-gradient(1.5px 1.5px at 90% 55%, rgba(160,220,255,.7), transparent 100%),
+    radial-gradient(1px 1px at 10% 60%, rgba(255,209,102,.5), transparent 100%);
+  background-size:520px 520px;
+  animation:spin 240s linear infinite;
+}
+.boot-stars::after{ animation-duration:340s; animation-direction:reverse; opacity:.6; background-size:380px 380px; }
+
+/* ---------------- pattern node canvas hover ---------------- */
+.pc-net{ cursor:crosshair; transition:border-color var(--t-med), box-shadow var(--t-med); }
+.pc-net:hover{ border-color:rgba(56,225,255,.4); box-shadow:inset 0 0 30px rgba(56,225,255,.06); }
+
+/* ---------------- micro hovers ---------------- */
+.kpi-value, .pf-value{ transition:text-shadow var(--t-med); }
+.kpi:hover .kpi-value{ text-shadow:0 0 34px rgba(56,225,255,.6); }
+.tag, .chip, .src-chip{ cursor:pointer; }
+.data-table tbody tr:hover td b{ color:var(--cyan); }
+.legend .li{ border-radius:6px; transition:background var(--t-fast), transform var(--t-fast); cursor:default; }
+.legend .li:hover{ background:rgba(56,225,255,.07); transform:translateY(-1px); }
+
+/* ---------------- reduced motion ---------------- */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  .ticker-track{ animation:none; }
+  .scanline, .aurora, #cursorGlow, #cursorDot{ display:none; }
+  .reveal{ opacity:1; transform:none; }
+  .tilt{ transform:none !important; }
+}
+body.fx-off .scanline, body.fx-off .aurora, body.fx-off #cursorGlow, body.fx-off #cursorDot, body.fx-off #bgParticles{ display:none; }
+body.fx-off .tilt{ transform:none !important; }
+body.fx-off .sheen::after{ display:none; }
+body.fx-off .reveal{ opacity:1; transform:none; }

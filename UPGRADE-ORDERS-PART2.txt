@@ -1,0 +1,436 @@
+================================================================================
+  J.A.R.V.I.S — UPGRADE ORDERS · PART II (DEEP-THINK ADDENDUM)
+  Written by: Claude (Fable) · 2026-07-12
+  READ UPGRADE-ORDERS.txt (Part I) FIRST. This file AMENDS and EXTENDS it.
+  Numbering continues: 900s integrity · 1000s intelligence · 1100s workflow ·
+  1200s behavior · 1300s architecture/ops · 1400s showcase.
+  Same ground rules as Part I Section 0 apply to everything here.
+================================================================================
+
+--------------------------------------------------------------------------------
+SECTION A — CRITICAL SELF-REVIEW (why these orders exist; read before coding)
+--------------------------------------------------------------------------------
+Honest assessment of v1's analytical core. More features will NOT fix these;
+they must be fixed at the engine level or the dashboard quietly lies.
+
+A1. DOUBLE COUNTING IS THE BIGGEST LIE IN THE APP TODAY.
+    Engine.totalTracked() sums amountCr across ALL items. The same ₹75,000 cr
+    announcement reported by 4 outlets becomes ₹3 lakh crore of phantom
+    "capital in motion". Within one article parseAmount already takes max()
+    (correct), but across articles nothing dedups. Once live feeds land
+    (Part I ORD-202), every big story arrives 3-6 times. Fix = ORD-901.
+    Until fixed, the headline KPI is inflated in live mode. Treat as P0.
+
+A2. THE KEYWORD NET ONLY CATCHES WHAT IT ALREADY KNOWS.
+    Sector/tag detection is a fixed dictionary. A brand-new theme (say
+    "uranium" or "rare-earth export ban") passes through silently unless a
+    keyword exists. The dictionary can never be complete — so the system
+    needs NOVELTY detection: notice terms that are suddenly frequent vs
+    their own history, without knowing what they mean. That is pure counting
+    (no AI) and it's the smartest capability this app can gain. → ORD-1001.
+
+A3. IMPACT SCORES ARE UNCALIBRATED CONSTANTS.
+    +11·log10(amount), +4/entity, +3/verb… arbitrary. Scores cluster in a
+    narrow band, so "83 vs 76" implies precision that does not exist.
+    Percentile-normalize within the current corpus → ORD-903.
+
+A4. SENTIMENT IS A BLUNT INSTRUMENT.
+    Questions ("Will defence stocks crash?"), conditionals, and negations
+    read as bearish/bullish incorrectly. Part I ORD-302 handles negation;
+    also treat headlines ending in "?" as neutral-leaning (halve the verb
+    contribution). Cheap, catches a real class of errors. Fold into ORD-302.
+
+A5. COVERAGE BIAS: "where the money is going" is really "where the money is
+    REPORTED going, within my keyword net, from my chosen feeds". The UI
+    should say so: a sensor-coverage indicator (feeds up / items parsed /
+    last sync) keeps future-you honest about what the radar can't see.
+    → ORD-904.
+
+A6. THE ENGINE IS NEVER HELD ACCOUNTABLE.
+    JARVIS flags patterns but never looks back at whether they meant
+    anything. With the archive (Part I ORD-203) + price history via the
+    relay, he can grade himself. Trust comes from visible hit-rates,
+    including the misses. → ORD-1003.
+
+A7. KNOWN v1 CODE QUIRKS (so Sonnet doesn't trip on them):
+    - Script load order is a hard dependency chain (U.fmtCompact lives in
+      charts.js but portfolio.js uses it at runtime). Do not reorder tags.
+    - App.renderCommand early-returns after KPIs when view !== 'command'
+      (radar + mini panels render only when visible; refreshed on gotoView).
+      Intentional. Same pattern in renderPatterns.
+    - Canvas hover handlers are assigned as element PROPERTIES (onmousemove=)
+      precisely so re-renders replace rather than stack listeners. Keep that
+      pattern for new charts.
+    - App._stops: loops started inside requestAnimationFrame callbacks. If
+      the user navigates during that one-frame gap, a loop can start for a
+      hidden view. Guard: inside each rAF-scheduled start, check App.view
+      still matches before starting the loop. → part of ORD-902.
+    - Jarvis INTENTS is order-dependent (first regex wins). "add N X at P"
+      must stay ABOVE the generic "portfolio" intent. When adding intents,
+      place specific patterns above general ones and note it in a comment.
+    - Live.mkItem strips Google News' " - Source" suffix by lastIndexOf(' - ');
+      titles containing " - " earlier are safe (dash>30 check) but em-dash
+      variants pass through — harmless, just know it.
+    - speechSynthesis.cancel() before each speak intentionally interrupts
+      previous speech (JARVIS shouldn't queue monologues).
+
+--------------------------------------------------------------------------------
+SECTION B — AMENDMENTS TO PART I ORDERS
+--------------------------------------------------------------------------------
+AMEND ORD-301 (corroboration): when merging near-duplicate stories, the
+  merged item's amountCr = MAX of the group (it is the same money), never the
+  sum. Corroboration boosts IMPACT, not AMOUNT. sources[] keeps all names.
+
+AMEND ORD-204 (quotes): wrap the quote source behind a tiny provider
+  interface (getQuotes(symbols) → {symbol:{price,changePct,ts}}) so Yahoo can
+  be swapped when (not if) the unofficial endpoint changes. Show a
+  "last synced HH:MM" stamp wherever live prices appear. Manual refresh only
+  or ≥60s polling — never hammer. If a symbol fails, keep the old price and
+  mark it stale (amber dot), don't zero it.
+
+AMEND ORD-506 (wake word): add a plain-language privacy note in settings:
+  Chrome/Edge SpeechRecognition streams mic audio to the browser vendor's
+  servers while listening. Personal choice, default OFF, and the armed state
+  must be clearly visible (pulsing dot). No always-on by default, ever.
+
+AMEND ORD-608 (PWA icons): generate icons once via a dev-only page
+  (jarvis/dev-icons.html) that draws the arc reactor on canvas at 192/512 and
+  lets you right-click-save the PNGs into jarvis/icons/. Don't ship the dev
+  page in the nav; it's a tool.
+
+AMEND ORD-602 (alerts): add price-level rules once ORD-204 exists:
+  {symbol, above/below, level} → alert when crossed at sync time. This is the
+  single most practically useful alert type for a personal tool.
+
+AMEND ORD-110 (backup): include IndexedDB archive export as NDJSON inside the
+  same backup file under an "archive" key (cap export at last 30 days to keep
+  the file sane; full archive is reconstructible from living life).
+
+--------------------------------------------------------------------------------
+SECTION C — 900 SERIES · ANALYTICAL INTEGRITY (P0/P1 — do before Phase 2 ships)
+--------------------------------------------------------------------------------
+ORD-901  Amount deduplication across the corpus. [P0]
+  Build flow records from CORROBORATION GROUPS (ORD-301), not raw items.
+  Two amounts in the same sector within ±10% inside a 72h window are the
+  same money — keep one flow, attach all source titles to it. totalTracked()
+  and flowBySector() consume deduped flows only. Add a small "deduped from
+  N reports" note on merged ledger rows. Write test cases in test.html
+  (ORD-705): 4 copies of the same ₹75,000 cr story → tracked total 75,000.
+
+ORD-902  Canvas loop lifecycle hardening. [P0, tiny]
+  (a) rAF-scheduled loop starts verify App.view is still the owning view.
+  (b) A single shared visibilitychange handler stops/starts all registered
+      loops (extend the App._stops entries to {stop, start} pairs or simply
+      stopLoops + re-render on visible).
+  (c) stopLoops() also runs on beforeunload (belt and braces).
+
+ORD-903  Impact score calibration. [P1]
+  After computing raw impact for the whole corpus, rescale to percentiles:
+  the top item in the current corpus reads ~97, median ~50. Keep the raw
+  score internally for archive comparability; display the percentile one.
+  The score-transparency tooltip (ORD-306) shows both.
+
+ORD-904  Sensor coverage / honesty panel. [P1]
+  Small strip on the Intel view (and inside settings): per-feed status dot
+  (last success time, items in last 24h, consecutive failures), overall
+  "coverage" line: "5/7 wires live · 122 signals/24h · last sync 14:32".
+  Also an explicit caption on the Money Flow view: "Tracks DISCLOSED,
+  REPORTED amounts from configured wires — not exhaustive market flows."
+  Honesty is a feature.
+
+ORD-905  Time correctness. [P1, small]
+  Parse RSS pubDate with explicit timezone handling (Date parses RFC-822
+  fine, but VERIFY hours-ago against IST display). All "daily" logic
+  (auto-brief, snapshots) keys off LOCAL calendar date via a single
+  U.todayKey() helper ("YYYY-MM-DD"), used everywhere — no scattered
+  new Date().getDate() comparisons. Midnight rollover while the app is open
+  should not double-fire or skip the daily snapshot.
+
+--------------------------------------------------------------------------------
+SECTION D — 1000 SERIES · DEEPER INTELLIGENCE, STILL NO AI (P1/P2)
+--------------------------------------------------------------------------------
+ORD-1001  ANOMALY SONAR — novelty detection. [P1 · the flagship of Part II]
+  Goal: surface themes the keyword dictionary does NOT know yet.
+  Method (pure counting):
+   1. Tokenize titles+bodies of current corpus: lowercase, strip punctuation,
+      drop stopwords (ship a ~200-word English stoplist in data.js) and all
+      terms already matched by JDATA.KEYWORDS/company names.
+   2. Count unigrams + bigrams for TODAY (last 24h). Compare each term's
+      frequency against its trailing 30-day daily average from the archive
+      (store daily term counts in the ORD-203 rollup; cap stored vocabulary
+      at top 500 terms/day).
+   3. Novelty score = (today − mean) / max(1, σ). Terms with z ≥ 3 and
+      today-count ≥ 3 across ≥ 2 sources are ANOMALIES.
+  UI: "ANOMALY SONAR" panel on Command Center — sonar-ping styling, each
+  anomaly a glowing chip: term, ×count, z-score, sources; click → filters
+  Intel to matching articles. Jarvis intent: "anything unusual?" / anomalies
+  appear in the daily brief when present ("Sir, the wires are suddenly loud
+  about 'uranium' — 9 mentions across 4 sources, no prior baseline").
+  Empty state: "No anomalies. The tape is quiet." NOTE: needs a few days of
+  archive to have a baseline; until then compare against the SIM corpus and
+  label "baseline warming up (N/7 days)".
+
+ORD-1002  Story threads. [P2]
+  Chain corroboration groups ACROSS DAYS: if today's group shares ≥ 0.4
+  shingle similarity or same sector+same company with a group from the past
+  14 days, link them into a thread. Threads view (inside Patterns, a tab or
+  section — do NOT add a new sidebar item): vertical timeline per thread
+  showing the story developing ("Jul 2: fab announced → Jul 8: phase-2 →
+  Jul 11: export deal"). Threads with ≥ 3 chapters get a "DEVELOPING" badge
+  and +10 impact on their latest item.
+
+ORD-1003  JARVIS accountability report. [P2 — needs archive age + quotes]
+  Monthly self-grading: for each pattern flagged ≥ 30 days ago (from archive
+  rollups), fetch the related sector proxy's price change since flag date
+  (map each sector to ONE liquid proxy symbol in JDATA.SECTORS, e.g.
+  defence→HAL.NS, banks→^NSEBANK, gold→GOLDBEES.NS — imperfect proxies,
+  say so on the panel). Report card in settings or a Patterns tab:
+  "Patterns flagged: 14 · proxy up ≥5% after 30d: 8 · flat: 4 · down: 2".
+  No cherry-picking: show all. Educational framing: correlation ≠ the
+  engine causing anything. This single feature teaches more about signal
+  quality than everything else combined.
+
+ORD-1004  Extractive brief summaries. [P2, small]
+  For clusters and threads, pick the 2 most information-dense sentences
+  from member bodies (score = sum of entity/keyword hits + presence of a
+  number, normalized by length; skip sentences > 220 chars). Use in pattern
+  card narratives and the daily brief instead of only headline lists. Crude
+  but effective, zero AI.
+
+ORD-1005  Sector playbooks (static education, big value/effort ratio). [P1]
+  JDATA.PLAYBOOKS: for each of the 12 sectors, a hand-written card:
+    how the sector earns · 3-5 metrics that matter (banks: NIM, CASA, GNPA;
+    IT: TCV, attrition, utilization; pharma: ANDA pipeline, USFDA status...)
+    · what typically moves it up/down · classic mistakes buyers make.
+  Surface: "PLAYBOOK" button on pattern cards + idea cards opens a glass
+  modal; Jarvis intent "explain banking sector" / "how do I judge defence
+  stocks". Write the content carefully once — it compounds forever.
+
+ORD-1006  Archive search. [P2]
+  Command palette (ORD-505) gains an "archive:" scope — "archive: uranium"
+  searches the IndexedDB store by substring across the last 90 days and
+  renders results as a temporary Intel-style list. Poor man's research
+  database.
+
+ORD-1007  "Why is the market moving" composite. [P3, fun]
+  Jarvis intent "why is the market up/down": correlates today's top-impact
+  signals' sentiment mix with today's index change (live or sim) and answers
+  with appropriate epistemic humility ("The tape is +0.8% while the wires
+  lean 71% bullish — the honest answer is nobody knows, but here's what the
+  wires are saying: …top 3 signals").
+
+--------------------------------------------------------------------------------
+SECTION E — 1100 SERIES · DECISION SUPPORT & WORKFLOW (P1/P2)
+The bridge between "interesting signal" and "money moved" — where a personal
+tool earns its keep. All of it is process, not prediction.
+--------------------------------------------------------------------------------
+ORD-1101  Thesis lifecycle board (kanban). [P1]
+  Every idea (and any watchlist name) can be promoted into a TRACKED THESIS:
+  {id, title, sector, source(ideaId), stage, notes[], createdAt, decidedAt}.
+  Stages: DETECTED → RESEARCHING → READY → POSITIONED → EXITED / REJECTED.
+  New section inside Ideas Lab (tab, not new sidebar item): columns with
+  drag-and-drop (plus keyboard ◀▶ buttons), glass cards, stage counts.
+  Moving to POSITIONED offers to link a portfolio transaction; EXITED asks
+  for outcome + one-line lesson. jarvis.theses.v1.
+
+ORD-1102  Pre-position checklist gate. [P1]
+  A thesis cannot move to READY until its checklist is ticked (persist per
+  thesis): valuation checked vs history · promoter pledge/governance scanned ·
+  debt level seen · who loses if this theme wins? · exit condition written ·
+  position size decided. Items are user attestations (no data fetching).
+  JARVIS enforces with manners: "Ambition without a checklist is how suits
+  blow up, Sir." This encodes discipline into the UI.
+
+ORD-1103  Decision journal. [P2]
+  Every BUY/SELL transaction optionally records {reasonTags[], note,
+  confidence 1-5}. Reason tags: pattern-signal / valuation / momentum /
+  income-need / rebalance / tip-FOMO (yes, include it — honesty).
+  Journal view under My Money: entries with outcome auto-appended later
+  (P&L 30/90d after, once quotes exist). Quarterly Jarvis observation:
+  "Your 'tip-FOMO' trades average −4.2%; your 'pattern-signal' trades +6.8%."
+  That sentence is worth the whole feature.
+
+ORD-1104  Position-sizing calculator. [P2]
+  Inputs: account equity (from book), risk per trade % (default 1%), entry,
+  stop. Output: quantity, capital at risk, % of book. Jarvis intent:
+  "size a trade entry 450 stop 420". Include the warning when a single
+  position would exceed 10% of the book.
+
+ORD-1105  Exit-condition reminders. [P2]
+  Theses in POSITIONED with a written exit condition get a standing card in
+  the Alert center; if quotes are live and the exit was numeric ("below
+  400"), auto-fire the alert. Text conditions just resurface weekly:
+  "You wrote: exit if order inflows stall two quarters. Still true?"
+
+--------------------------------------------------------------------------------
+SECTION F — 1200 SERIES · BEHAVIORAL GUARDRAILS (P2 — small, high leverage)
+"Make me money faster" usually dies by overtrading. JARVIS should be the calm
+one in the room. Keep every nudge dry, factual, dismissible — never naggy.
+--------------------------------------------------------------------------------
+ORD-1201  Overtrading detector: > 5 transactions in 7 days → one-time dry
+  remark in chat + journal tag suggestion. Count resets weekly. Setting to
+  disable ("Sir prefers not to be supervised").
+ORD-1202  Chase detector: adding a holding/thesis in a sector whose pattern
+  momentum has been ≥ 80 for ≥ 2 weeks (archive) → gentle note: "You are
+  arriving after the parade started — late entries need stricter exits."
+ORD-1203  Drawdown framing: when book P&L is negative, ALSO render it in
+  months-of-expenses (if budget data exists): "−₹38,000 ≈ 0.7 months of
+  runway." Numbers people can feel beat percentages.
+ORD-1204  "Do nothing" as first-class output: when no pattern exceeds
+  momentum 60 and bias is 45-55%, the daily brief explicitly says the
+  correct move is probably nothing. An engine that can say "no edge today"
+  is more credible every other day.
+ORD-1205  Celebration protocol, bounded: confetti + chime when a GOAL
+  milestone (25/50/75/100%) is crossed — not for daily P&L moves. Never
+  celebrate leverage or streaks.
+
+--------------------------------------------------------------------------------
+SECTION G — 1300 SERIES · ARCHITECTURE, OPS, HARDENING (P1/P2)
+--------------------------------------------------------------------------------
+ORD-1301  Event bus (20 lines, no framework). [P1 — do before Part I Phase 2]
+  const Bus = {on, off, emit} in a new js/bus.js loaded first-ish.
+  Emit: 'data:updated' (Engine.run/ingest), 'portfolio:changed',
+  'settings:changed', 'quotes:updated', 'alert:fired'.
+  Renderers subscribe instead of being hand-called from fetchLive etc.
+  This stops the growing web of App.renderX() cross-calls before Part I's
+  features make it unmanageable. Migrate existing call sites gradually.
+
+ORD-1302  Editor-grade types without a build step. [P1, cheap, helps Sonnet]
+  Add // @ts-check + JSDoc typedefs at the top of each js file (NewsItem,
+  Cluster, Flow, Idea, Holding, Txn, Thesis, Settings). No .ts files, no
+  compiler — VS Code will type-check live. Fix whatever it flags. This
+  materially reduces implementation bugs for every later order.
+
+ORD-1303  CSP hardening. [P1, tiny]
+  Meta tag in index.html: default-src 'self'; script-src 'self';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com; img-src 'self' data:;
+  connect-src 'self' http://localhost:5510 https://api.allorigins.win
+  https://corsproxy.io https://api.rss2json.com. Verify nothing breaks
+  (inline styles are used by renderers — hence unsafe-inline for style only;
+  NO unsafe-inline for scripts — move the zero inline scripts if any appear).
+
+ORD-1304  Relay ops polish. [P2]
+  - stale-while-revalidate: serve cached RSS instantly, refresh in background.
+  - simple request log line per fetch (host, ms, hit/miss) to stdout.
+  - /health endpoint returning {uptime, cacheSize, lastErrors[]} — the
+    ORD-904 coverage panel reads it when available.
+  - refuse non-GET; cap response bodies at 2MB; strip set-cookie.
+
+ORD-1305  Test depth (extends ORD-705). [P2]
+  - Golden-corpus test: freeze a 12-item mini corpus + the EXACT expected
+    clusters/flows/ideas JSON; engine changes must update the golden file
+    consciously (test page shows a diff).
+  - Fuzz the RSS parser with malformed XML/JSON strings (must never throw).
+  - Property checks: XIRR(single flow)=null; SIP FV monotonic in rate/years;
+    parseAmount ignores "₹0 crore"; percentile impact stays within 1..99.
+  - Since the relay is Node: add relay.test.js runnable with `node --test`
+    covering whitelist rejection + cache expiry (no extra deps).
+
+ORD-1306  Doc for future sessions. [P2, small]
+  jarvis/ARCHITECTURE.md: module map, data shapes (paste the JSDoc typedefs),
+  event bus contract, storage keys registry (every jarvis.* key + version +
+  owner module), and "how to add a new panel / intent / chart" recipes.
+  Update it whenever a new key or event is added. This file is for the NEXT
+  model session as much as for the human.
+
+--------------------------------------------------------------------------------
+SECTION H — 1400 SERIES · SHOWCASE & PRESENTATION (P2/P3)
+This lives in a 6th-semester project repo. It should also DEMO brilliantly.
+--------------------------------------------------------------------------------
+ORD-1401  PRESENTATION MODE (killer demo feature). [P2]
+  Settings → "Begin presentation" (or ?demo=1): a scripted, skippable tour:
+  boot plays → JARVIS types a canned narration per view while the router
+  walks Command → Intel → Patterns → Flows → Ideas → My Money (demo book
+  auto-loaded, budget prefilled) → finale: party protocol. Each step ~8s,
+  space/click advances, Esc exits, everything from canned strings (no
+  network). For viva/demo days: one keypress, lean back.
+
+ORD-1402  Docs pack for evaluation. [P2]
+  README upgrades: 4-6 real screenshots (capture manually), a feature matrix
+  table, an architecture diagram (ASCII or a hand-drawn SVG — no external
+  services), and a "runs offline / no accounts / no AI APIs" privacy line.
+  Add a 90-second demo script (what to click, what to say).
+
+ORD-1403  Onboarding tour for future-you. [P3]
+  First-run only: 5 glass tooltip steps anchored to sidebar/radar/chat
+  ("This is the pattern engine…"). Dismiss forever. jarvis.tour.v1.
+
+ORD-1404  Information-architecture restraint (a rule, not a feature).
+  The sidebar stays at SIX views. Every Part I/II feature lands INSIDE an
+  existing view (tabs/sections/modals) — threads in Patterns, kanban in
+  Ideas, journal/goals/expenses in My Money, coverage in Intel, report card
+  in settings. If a feature seems to need a 7th nav item, it goes in the
+  command palette instead. Sprawl is how dashboards die.
+
+--------------------------------------------------------------------------------
+SECTION I — CONSIDERED AND REJECTED (do not build; reasons matter)
+--------------------------------------------------------------------------------
+R1. Broker API auto-import (Zerodha/Kite etc.): needs API keys, OAuth, ToS,
+    and secrets handling — violates the no-keys/no-auth spirit. CSV import
+    (ORD-805) covers 90% of the value with 5% of the risk.
+R2. Backtesting engine: honest backtests need survivorship-bias-free
+    historical constituents + corporate-action-adjusted prices. A naive
+    version would produce confident nonsense — worse than nothing. The
+    accountability report (ORD-1003) is the honest substitute.
+R3. Push notifications with the tab closed: requires a push server +
+    subscriptions — cloud infrastructure for marginal gain. Alerts fire
+    on-open + while open; that's enough for a personal tool.
+R4. Scraping paywalled/anti-bot sites (NSE endpoints, paywalled press):
+    fragile, ToS-hostile, and the relay whitelist is a security boundary —
+    keep it short and boring.
+R5. Multi-device sync: implies cloud storage of financial data. Export/
+    import (ORD-110) is the manual, private alternative.
+R6. Social/sharing features: it's a single-user instrument. Sharing invites
+    advice-adjacent complications (G8).
+R7. Auto-refreshing news on an interval: burns quota/goodwill on relays and
+    turns a research tool into a slot machine. Manual FETCH LIVE (+ once on
+    daily first open, ORD-503) is deliberate.
+R8. In-app LLM via WebGPU (llama.cpp-style local models): tempting and
+    technically "no API", but heavyweight, brittle, and the user said no AI
+    for now. Revisit only if the user explicitly asks.
+
+--------------------------------------------------------------------------------
+SECTION J — REVISED MASTER EXECUTION ORDER (merges Part I + Part II)
+--------------------------------------------------------------------------------
+ Sprint 1  ORD-110, 101..109, 902, 1303          (stability + safety)
+ Sprint 2  ORD-1301, 1302                        (bus + types BEFORE features)
+ Sprint 3  ORD-201, 202, 205, 1304               (relay + wires)
+ Sprint 4  ORD-203, 905                          (archive + time correctness)
+ Sprint 5  ORD-301+A4, 901, 903, 302, 303        (integrity + smarter engine)
+ Sprint 6  ORD-904, 306, 304, 305                (honesty + threat + calendar)
+ Sprint 7  ORD-401, 402, 403                     (transactions, XIRR, history)
+ Sprint 8  ORD-404, 405, 406, 407, 408           (goals, rebalance, expenses)
+ Sprint 9  ORD-1001                              (ANOMALY SONAR — flagship)
+ Sprint 10 ORD-501..505, 503-daily-brief          (brain)
+ Sprint 11 ORD-1101, 1102, 1103                  (thesis board + journal)
+ Sprint 12 ORD-204, AMEND-602 price alerts, 602  (quotes + alert center)
+ Sprint 13 ORD-601, 603, 604                     (map, sound, themes)
+ Sprint 14 ORD-605..609, 1205                    (delights)
+ Sprint 15 ORD-1002, 1004, 1005, 1006            (threads, summaries, playbooks)
+ Sprint 16 ORD-1201..1204, 1104, 1105            (guardrails + sizing)
+ Sprint 17 ORD-701..705, 1305, 1306              (hardening + docs)
+ Sprint 18 ORD-1401, 1402, 1403                  (presentation + showcase)
+ Later     ORD-1003 (needs 30d of archive), 1007, 506, backlog 801..806
+ Rule: one sprint per session, smoke test (Part I Section 11) at the end,
+ minimal diffs (do not reformat untouched code), update ARCHITECTURE.md when
+ a storage key or bus event is added.
+
+--------------------------------------------------------------------------------
+SECTION K — NORTH STAR · DEFINITION OF "V2 COMPLETE"
+--------------------------------------------------------------------------------
+The one-minute morning protocol. V2 is done when, every morning, in under 60
+seconds and zero clicks beyond opening the app, the user gets — truthfully:
+  1. What changed since yesterday (new signals, pattern deltas, anomalies).
+  2. Where disclosed money actually moved (deduped, sourced, honest coverage).
+  3. What deserves research today (ideas + threads), and equally, when the
+     answer is "nothing — stand down".
+  4. Whether the plan is on track (book, goals, SIPs due, exit conditions),
+     with every nudge pointing at process, not prediction.
+And when the numbers on screen can all answer the question "says who?" —
+via source chips, score breakdowns, coverage stats, and the accountability
+report. A dashboard you can trust is the entire product. The glow is just
+the reward for building it right.
+================================================================================
+END OF PART II — Fable
+================================================================================

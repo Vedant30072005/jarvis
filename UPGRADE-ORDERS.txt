@@ -1,0 +1,505 @@
+================================================================================
+  J.A.R.V.I.S — ECONOMIC INTELLIGENCE · UPGRADE ORDERS (v2 ROADMAP)
+  Written by: Claude (Fable) · 2026-07-11
+  For: the implementing model (Sonnet). Execute in phase order.
+  App location: /jarvis/ inside this repo. Current build is v1, fully working.
+================================================================================
+
+CONTEXT FOR THE IMPLEMENTER
+---------------------------
+The app is a vanilla HTML/CSS/JS (NO build step) glassmorphism dashboard:
+  jarvis/index.html            — shell, SVG icon sprite, all views' scaffolding
+  jarvis/css/main.css          — tokens, glass system, layout, components
+  jarvis/css/fx.css            — keyframes, tilt/sheen/reveal systems
+  jarvis/js/data.js            — JDATA: sectors, keywords, lexicons, sim feed
+  jarvis/js/engine.js          — U utils + Engine: analyze/cluster/flows/ideas
+  jarvis/js/charts.js          — Charts: donut, spark, radar, network, sipArea
+  jarvis/js/fx.js              — FX: particles, cursor, tilt, type, boot, confetti
+  jarvis/js/portfolio.js       — Portfolio: holdings, SIP math, budget, insights
+  jarvis/js/live.js            — Live: Google News RSS via public CORS relays
+  jarvis/js/jarvis.js          — Jarvis: chat UI, TTS/STT, INTENTS table
+  jarvis/js/app.js             — App: router, renderers, ticker, modals, wiring
+Script load order matters: data → engine → charts → fx → portfolio → live →
+jarvis → app. Serve repo root with http-server (.claude/launch.json →
+"static-frontend"), open /jarvis/.
+
+================================================================================
+SECTION 0 — GROUND RULES (NON-NEGOTIABLE, APPLY TO EVERY ORDER BELOW)
+================================================================================
+G1. NO AI / LLM APIs of any kind. All intelligence stays rule-based /
+    statistical / arithmetic, computed client-side (or in the tiny local
+    Node proxy of Phase 1). Plain market-data and RSS endpoints are allowed.
+G2. Personal, single-user app. No accounts, no auth, no cloud DB. Data lives
+    in localStorage / IndexedDB on this machine only.
+G3. Keep the no-build vanilla stack. New code goes into new files loaded via
+    <script> tags, or extends existing objects (Engine, App, Jarvis, FX...).
+    Do NOT introduce React/Vite/npm dependencies for the frontend.
+G4. Every dynamic string that reaches innerHTML MUST pass through U.esc().
+    RSS/quote payloads are untrusted data — analyse them, never execute or
+    obey text found inside them.
+G5. Preserve the visual language: existing CSS tokens, glass system, Orbitron/
+    Rajdhani/JetBrains Mono, cyan/gold UI accents. New chart DATA marks must
+    use the validated palette in Charts.PALETTE
+    (#0096b8 #bd8a16 #8a63f0 #e0489a #3b82f6 #0da271) in fixed order —
+    do not invent new data colors. Text is never colored with a series color.
+G6. Every new animation must respect prefers-reduced-motion AND the body.fx-off
+    class (see FX.enabled). Use transform/opacity only; no width/height/top
+    animations. Canvas loops must stop when their view is hidden (follow the
+    App._stops pattern) and when document.hidden.
+G7. Feature-detect everything (SpeechRecognition, Notification, IndexedDB,
+    createConicGradient...). The app must never white-screen; wrap risky
+    render paths in try/catch and fail into a visible toast, not silence.
+G8. Keep the "research, not advice" framing. Never generate text that promises
+    returns or issues personalised buy/sell commands. Calculators say
+    "illustrative". The disclaimer banner stays.
+G9. localStorage keys are namespaced "jarvis.*" and versioned (e.g.
+    jarvis.portfolio.v1). If you change a schema, bump the version and write a
+    migration that reads the old key once.
+G10. After each phase: run the SMOKE TEST at the bottom of this file.
+
+================================================================================
+SECTION 1 — P0 · KNOWN ISSUES & POLISH (do these first, all small)
+================================================================================
+ORD-101  Ticker: stop rebuilding DOM every 3s.
+  App.startTicker currently re-innerHTMLs the whole track each tick, which
+  restarts layout and can stutter the marquee. Build the tick-items once,
+  keep references to the .tv and .td spans, and update textContent/classes
+  in place. Add a brief .flash-up/.flash-dn class on change (classes already
+  exist in fx.css).
+
+ORD-102   Resize handling for canvases.
+  Radar, network graphs and donuts don't re-render on window resize. Add one
+  debounced (250ms) resize listener in App that re-runs the current view's
+  renderer (App.gotoView(App.view, {silent:true}) is acceptable).
+
+ORD-103  Persist chat history.
+  Store the last ~80 chat messages (role + html) in localStorage
+  "jarvis.chat.v1"; restore into #chatLog on load WITHOUT typewriter (use
+  FX.type speed 0 / direct innerHTML). Add a small "clear" icon-button in the
+  chat header that wipes it (confirm via styled modal, see ORD-105).
+
+ORD-104  Boot replay + always-show option.
+  Settings gets "Cinematic boot on every load" toggle (default off = boot only
+  once per session as now). Also add a tiny "REBOOT" button in settings that
+  clears sessionStorage jarvis.booted and reloads.
+
+ORD-105  Replace native confirm()/alert() with a styled glass modal.
+  App.modal already exists — add App.confirm(message) returning a Promise
+  <boolean>, and swap the two native confirm() calls (holding delete, data
+  reset).
+
+ORD-106  Empty/edge states.
+  - Intel search with 0 results: suggest clearing filters (exists) + a button
+    that actually clears them.
+  - Flows view when no amounts parsed: friendly empty panel.
+  - Portfolio with 1 holding: allocation donut of a single 100% segment must
+    render correctly (test it).
+
+ORD-107  Network-graph labels can overflow the small canvases.
+  In Charts.network, clamp label x within [20, w-20] and skip labels when the
+  canvas is under 200px wide (show on hover only).
+
+ORD-108  Pause ALL canvas loops when document.hidden (radar + networks).
+  FX.particles already does this; replicate via a shared visibilitychange hook
+  that calls the App._stops functions' pause or simply cancels and re-renders
+  on visibility return.
+
+ORD-109  Add favicon + page metadata polish for the /jarvis app (title already
+  fine). Add theme-color meta (#04060d).
+
+ORD-110  Backup/restore (CRITICAL for a personal finance tool).
+  Settings: "EXPORT DATA" downloads jarvis-backup-YYYY-MM-DD.json containing
+  every jarvis.* localStorage key (+ IndexedDB archive once Phase 2 lands).
+  "IMPORT DATA" reads the file back (validate JSON, show what will be
+  overwritten, styled confirm). This must ship before any deeper money
+  features — localStorage is fragile.
+
+================================================================================
+SECTION 2 — PHASE 1 · DATA BACKBONE (P1)
+The single biggest real upgrade: reliable live data + memory of the past.
+================================================================================
+ORD-201  Local relay server (replaces flaky public CORS proxies).
+  New file: jarvis/relay.js — a zero-dependency Node http server (port 5510):
+    GET /rss?url=<encoded>     → fetches the URL server-side, returns body,
+                                  Access-Control-Allow-Origin: *
+    GET /quote?symbols=A,B,C   → proxies Yahoo Finance
+                                  query1.finance.yahoo.com/v8/finance/chart/
+                                  (one symbol per fetch, batched serially),
+                                  returns {symbol:{price, changePct, prevClose}}
+    Rules: WHITELIST allowed hosts (news.google.com, query1.finance.yahoo.com,
+    plus feed hosts from ORD-202). Reject anything else with 403. In-memory
+    cache: 5 min for RSS, 60s for quotes. Timeout 8s. No disk writes.
+  Add a third configuration to .claude/launch.json ("jarvis-relay", node
+  jarvis/relay.js, port 5510).
+  In js/live.js: try http://localhost:5510 FIRST, fall back to the existing
+  public relays, then simulation. Surface which path succeeded in the mode
+  chip tooltip.
+
+ORD-202  More wires, weighted sources.
+  Extend Live.QUERIES with direct RSS feeds (all fetched through the relay):
+    - PIB releases:            https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3
+    - RBI press releases:      https://www.rbi.org.in/pressreleases_rss.xml
+    - Moneycontrol top news:   https://www.moneycontrol.com/rss/latestnews.xml
+    - Economic Times markets:  https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms
+    - Mint markets:            https://www.livemint.com/rss/markets
+  (Verify each feed still resolves at implementation time; drop dead ones
+  gracefully — a feed failing must never fail the batch.)
+  Add JDATA.SOURCE_WEIGHTS: official sources (PIB, RBI, exchange filings)
+  weight 1.3, wire agencies 1.15, everything else 1.0. Engine.analyzeItem
+  multiplies impact by the weight (cap stays 99).
+
+ORD-203  Signal archive (IndexedDB) — give JARVIS a memory.
+  New file: jarvis/js/store.js — tiny IndexedDB wrapper (db "jarvis", store
+  "signals", keyPath "key" = normalized-title hash; fields: firstSeen,
+  lastSeen, item snapshot, sectors, senti, impact, amountCr).
+  On every Engine.run/ingest: upsert items; prune entries older than 90 days.
+  This enables:
+    a) "NEW" badge on intel cards first seen < 24h ago and not seen before.
+    b) Pattern momentum DELTAS: compare cluster momentum vs the same sector's
+       momentum 24h/7d ago → show "▲ +38% vs yesterday" on pattern cards and
+       in the brief.
+    c) Sector heat history: a real 14-day sparkline per sector (replaces the
+       current decorative random sparklines on KPI tiles — KPIs should chart
+       real history once it exists: signals/day, tracked capital/day).
+    d) "What changed since my last visit" — see ORD-403.
+  Store a daily rollup (date → {signals, trackedCr, bullPct, perSector:{...}})
+  in localStorage "jarvis.history.v1" as a cheap query layer.
+
+ORD-204  Real quotes (optional module, graceful fallback).
+  Portfolio holdings get an optional "symbol" field (e.g. HAL.NS, GOLDBEES.NS,
+  BTC-USD). If the relay is up: "SYNC PRICES" button in My Money fetches
+  quotes and updates h.cur (show per-row ▲/▼ flash). Ticker indices switch
+  from random-walk to real quotes (^NSEI, ^BSESN, ^NSEBANK, INR=X, GC=F,
+  BTC-USD) with the SIM chip flipping to LIVE. If the relay is down, keep
+  simulation exactly as now. NEVER auto-trade, never write anywhere — read
+  only. Update the mode chip semantics: SIM / LIVE-NEWS / LIVE-FULL.
+
+ORD-205  Currency & units coherence.
+  Engine.USD_INR becomes a setting (default 85.5, editable in settings; if
+  quotes are live, use INR=X automatically). Show the assumed rate in the
+  Money Flow view footer.
+
+================================================================================
+SECTION 3 — PHASE 2 · SMARTER ENGINE (P1, pure logic, no APIs)
+================================================================================
+ORD-301  Corroboration scoring.
+  Same story from 2+ distinct sources (title Jaccard similarity > 0.55 on
+  3-gram shingles, or same sector+amount within 10%) becomes ONE item with a
+  "CONFIRMED ×N" chip and +15 impact. Keep both source names in the card.
+  This makes "connecting the dots" visibly real.
+
+ORD-302  Negation & direction awareness in sentiment.
+  Before lexicon matching, neutralise matches preceded within 3 words by
+  "denies, rules out, no plans, unlikely, rejects, postpones". Add DIRECTION
+  to flows: outflow verbs (withdraws, pulls out, sells stake, exits, outflow)
+  make amountCr NEGATIVE for that sector; flows list shows red left-pointing
+  bars for outflows; Engine.flowBySector nets them.
+
+ORD-303  Expand the entity universe (data-only change in data.js).
+  ~60 listed companies mapped to sector + Yahoo symbol; more macro tags
+  (GST, disinvestment, PSU, bond yields, rupee, monsoon, crude, EL Niño,
+  critical minerals, GCC/data-embassies). Add JDATA.COMPANY_RX built once from
+  the names for fast matching. Entities of type "company" should render as
+  clickable tags that filter Intel AND deep-link to the sector.
+
+ORD-304  Threat board (bearish radar).
+  New panel on Command Center (and a Jarvis intent): clusters where bear >
+  bull, plus standalone signals with senti=bear & impact ≥ 70. Rule-based
+  defensive notes only ("review exposure", "hedges historically used: gold /
+  cash / defensives" — generic education, not instructions). Red-accent glass
+  styling, alertPulse on the header icon.
+
+ORD-305  Macro event calendar.
+  JDATA.EVENTS: static list of recurring/known dates (RBI MPC weeks, FOMC
+  weeks, Union Budget Feb 1, monthly F&O expiry last Thu, quarterly results
+  seasons, GST council). New slim panel on Command Center: next 5 events with
+  live countdown (days/hrs), each tagged with affected sectors. Jarvis brief
+  mentions the next event within 7 days.
+
+ORD-306  Score transparency.
+  Impact chip on intel cards gets a hover tooltip breaking down the score:
+  base + money size + entities + verbs + source weight + corroboration.
+  Reuse the #chartTip element.
+
+ORD-307  Sector correlation mini-matrix.
+  Patterns view footer: a small canvas/HTML grid showing which sector pairs
+  co-occur in the same articles (count-based). Cells use ONE sequential ramp
+  (light→dark of #0096b8) — this is magnitude, not identity. Tooltip with
+  pair + count. Skip pairs with 0.
+
+================================================================================
+SECTION 4 — PHASE 3 · MONEY MANAGER PRO (P1 — "manage my money" properly)
+================================================================================
+ORD-401  Transactions, not snapshots.
+  Upgrade Portfolio to a transaction ledger: {id, date, side BUY/SELL, name,
+  type, qty, price, symbol?}. Holdings become a computed view (FIFO avg cost).
+  Migration: existing holdings convert to synthetic BUY transactions dated
+  today (keep jarvis.portfolio.v1 read-once migration → v2). UI: transactions
+  table (newest first) collapsible under the holdings ledger; SELL reduces
+  qty and books REALISED P&L shown separately from unrealised.
+
+ORD-402  XIRR + true performance.
+  Implement XIRR via Newton-Raphson over dated cashflows (buys negative,
+  sells positive, current value as final inflow). Show: invested, current,
+  unrealised P&L, realised P&L, XIRR %. Label clearly "since first
+  transaction". Guard: fewer than 2 cashflows or <30 days span → show "—".
+
+ORD-403  Net-worth history + "since your last visit".
+  On each app load (max once/day) snapshot {date, netWorth, perClass} into
+  jarvis.history.v1. My Money hero gets a real 30-day area chart (reuse
+  sipArea-style renderer). Command Center greeting sub-line adds: "Since your
+  last visit: +N signals, top pattern changed to X, book moved ±Y%" (uses
+  ORD-203 archive + this snapshot).
+
+ORD-404  Goals engine.
+  Goals: {name, targetAmount, targetDate, linkedMonthly}. For each: required
+  monthly SIP at settings-configurable assumed CAGR (default 12, show the
+  assumption), on-track meter comparing current trajectory (net worth growth
+  + committed monthly) vs required. Panel in My Money with add/edit/delete
+  modals. Jarvis intents: "goal 1 crore by 2035", "am I on track".
+
+ORD-405  Rebalancing assistant.
+  Settings per user: target allocation percentages by asset class (Equity/MF/
+  Gold/Crypto/Cash, must sum 100, slider UI). My Money panel shows current vs
+  target drift bars; if any class drifts > 5pp, list the ₹ amounts to shift
+  ("move ~₹42,000 from Equity to Gold to restore 10% target"). Frame as
+  arithmetic, not advice ("to match YOUR stated target").
+
+ORD-406  Expense tracker lite.
+  Quick-add row (amount, category chip: Food/Transport/Rent/Fun/Other, note)
+  stored monthly in jarvis.expenses.v1. Month view: category donut (validated
+  palette), total vs budget.expense, biggest category, 3-month trend bars.
+  Jarvis: "spent 450 on food" logs it; "expense report" summarises.
+
+ORD-407  SIP registry (actual SIPs, not just the projector).
+  {fundName, amount, dayOfMonth, active}. Panel lists next due dates,
+  auto-marks executed on/after the day (with a manual undo), monthly total
+  feeding the Goals engine trajectory. Jarvis: "my sips".
+
+ORD-408  More calculators (Jarvis intents + a Calculators drawer in My Money):
+  step-up SIP (annual % increase), lumpsum vs SIP comparison, EMI (loan
+  amount/rate/tenure → EMI + total interest), inflation-adjusted future value,
+  FIRE number (annual expenses × 25/30/33 with withdrawal-rate note), CAGR
+  from two values+years. Each returns clean formatted output; all say
+  "illustrative".
+
+================================================================================
+SECTION 5 — PHASE 4 · JARVIS BRAIN (P2, rule-based only)
+================================================================================
+ORD-501  Conversation micro-memory.
+  Jarvis keeps {lastIntent, lastEntity(sector/company), lastList} in memory.
+  Follow-ups resolve against it: "tell me more", "why", "and the risks?",
+  "open it", "next one". Implement as a FOLLOWUP intent checked FIRST when
+  the message is < 4 words and matches follow-up patterns.
+
+ORD-502  Response variation.
+  Every canned phrase pool (ack, greeting, fallback, thanks) gets 4-6
+  variants chosen by U.pick, so he never repeats himself twice in a row
+  (remember last pick per pool). Personality: dry, precise, addresses user
+  by the name from settings (ORD-604) or "Sir".
+
+ORD-503  Daily auto-brief.
+  First load of a calendar day: after boot greeting, Jarvis automatically
+  delivers the morning/evening brief (reuse Jarvis.brief) prefixed with the
+  "since last visit" delta (ORD-403). Setting to disable.
+
+ORD-504  New intents (beyond the calculator/goal/expense ones above):
+  - "compare defence and railways" → side-by-side momentum, flows, sentiment.
+  - "price of HAL" → live quote if relay up, else last known/simulated + label.
+  - "explain the <sector> pattern" → cluster narrative + story timeline lines.
+  - "alerts" / "alert me when impact above 80 in defence" → configures ORD-602.
+  - "mute" / "speak" (voice control of TTS), "clear chat".
+  - "what is <term>" glossary EXPANSION: +25 terms (LTCG/STCG basics, indexation,
+    NIM, CASA, book value, P/E, P/B, ROE, ROCE, EBITDA, free cash flow,
+    drawdown, beta, alpha, hedge, arbitrage, futures, options premium,
+    circuit limits, ASM/GSM lists, buyback, bonus vs split, rights issue,
+    promoter pledge, delivery volume). Educational one-liners only.
+  - "export brief" → copies the current brief to clipboard as plain text.
+
+ORD-505  Command palette (Ctrl+K / Cmd+K).
+  Full-screen glass overlay, fuzzy search across: 6 views, all Jarvis example
+  commands, sector names (jumps to filtered Intel), holdings, settings
+  actions. Keyboard: arrows + enter, Esc closes. Also add number keys 1-6 for
+  view switching and "/" to focus Intel search when on that view.
+
+ORD-506  Optional wake word ("Hey Jarvis") — Chrome/Edge only.
+  Settings toggle (default OFF, with a mic-privacy note). When on: continuous
+  SpeechRecognition that restarts onend; if a final transcript starts with
+  "jarvis" or "hey jarvis", strip the wake word and route the rest to
+  Jarvis.handle, with the chat dock auto-opening. Visual: small pulsing mic
+  dot in the topbar while armed. Must never run unless the toggle is on.
+
+================================================================================
+SECTION 6 — PHASE 5 · SHOWPIECES & THEATRICS (P2 — the fun excess)
+================================================================================
+ORD-601  Global money-flow map (the centerpiece).
+  Replace-or-toggle the Sector Radar panel with "CAPITAL FLIGHT MAP": an
+  inline simplified world/India SVG outline (draw a coarse path by hand, no
+  external assets) with a canvas overlay. Animated quadratic-bezier arcs from
+  origin anchors (US, EU, Japan, China, Gulf — labeled edge nodes) into India,
+  and internal gov→sector arcs. Arc thickness/particle rate ∝ amountCr,
+  color = FLOW_SOURCES hex. Hover an arc's endpoint → tooltip with the exact
+  ledger entries. Toggle button in the panel head switches RADAR ⇄ MAP
+  (persist choice). Respect FX.enabled: static arcs when reduced.
+
+ORD-602  Alert center.
+  Bell icon-button in the topbar with a count badge. Rules stored in
+  jarvis.alerts.v1: {impactMin, sectors[], watchlistMention:boolean,
+  bearishOnly:boolean}. Evaluated on every ingest/run; hits create alert
+  records (max 50, newest first) shown in a dropdown glass panel with
+  read/unread states. Optional browser Notification (Notification API,
+  request permission only when the user enables it in settings) + a soft
+  WebAudio ping (ORD-603). This makes live mode genuinely useful.
+
+ORD-603  Sound design (WebAudio, synthesized — zero asset files).
+  New file js/sound.js: tiny synth (OscillatorNode + GainNode envelopes):
+    - boot chime (3 ascending sines, ~600ms) at boot completion
+    - soft "tick" on nav view change (very quiet, < -24dB)
+    - toast ping (two-tone)
+    - alert ping (slightly more insistent)
+    - radar sweep sub-blip every full rotation (OFF by default)
+    - Jarvis speak start/stop whoosh (noise burst through lowpass)
+  Master toggle + volume slider in settings (default ON at 20%). Never play
+  before first user interaction (browser autoplay policy — arm on first
+  click/keypress). All gated by FX-style "Sound.enabled".
+
+ORD-604  Themes + identity.
+  Settings: user name (Jarvis addresses it), theme picker with 3 themes via
+  :root[data-theme]:
+    - "arc"    (current cyan/gold — default)
+    - "mark7"  (hot-rod red #ff4d4d UI accents + gold, darker bg)
+    - "stealth"(desaturated ice-blue/graphite, minimal glow)
+  IMPORTANT: themes swap UI ACCENT tokens only (--cyan/--gold/aurora colors).
+  Chart data palette (Charts.PALETTE) stays IDENTICAL in all themes (it is
+  contrast-validated). Persist jarvis.settings.v1.
+
+ORD-605  Command Center layout editor.
+  Each cc-grid panel header gets a subtle drag handle; HTML5 drag-and-drop
+  reorders panels (grid-template-areas swap or order property), plus
+  keyboard-accessible ▲/▼ buttons in a small "edit layout" mode toggled from
+  settings. Persist order in jarvis.layout.v1. "Reset layout" button.
+
+ORD-606  Panel focus mode.
+  Expand icon on every panel head → the panel animates (FLIP technique:
+  transform from its rect to near-fullscreen overlay) with backdrop blur;
+  Esc or ✕ returns it. Charts re-render at the larger size (call the view
+  renderer for that panel). Great for the radar/map and flow charts.
+
+ORD-607  Ticker odometer + richer hover.
+  Ticker numbers roll per-digit (odometer style: vertical translate of a
+  digit column, transform-only). Hovering a ticker item shows a #chartTip
+  with day range + source (SIM or LIVE). Keep ORD-101's in-place updates.
+
+ORD-608  PWA (installable).
+  jarvis/manifest.json (name J.A.R.V.I.S, display standalone, theme_color
+  #04060d, icons: generate 2 sizes as inline-drawn canvas→PNG at build time
+  is NOT possible without build — instead ship a simple SVG icon and one
+  192/512 PNG exported manually OR use purpose "any" SVG where supported).
+  jarvis/sw.js scoped to /jarvis/ ONLY (do not touch the shop's root sw.js):
+  cache-first for same-origin static assets, network-only for relay/API
+  calls, version-bump cache name on deploy. Register from index.html.
+
+ORD-609  Micro-delights (cheap, sprinkle everywhere):
+  - KPI tiles: magnetic hover (already tilt) + icon does a 360 spin once.
+  - Watchlist add: the tag flies (FLIP) to the watch strip.
+  - Net worth number: glow flash + odometer on change.
+  - Intel card impact ≥ 90: subtle animated red/gold corner ribbon "CRITICAL".
+  - Jarvis orb: idle micro-breathing (scale 1↔1.02, 4s) when not speaking.
+  - Toast stack: existing; add slight tilt-in rotation (2deg spring).
+  - Keyboard-focus ring: cyan sweep animation on :focus-visible.
+
+================================================================================
+SECTION 7 — PHASE 6 · QUALITY / PERF / A11Y (P2, ongoing)
+================================================================================
+ORD-701  Central error boundary: window.onerror + unhandledrejection →
+  console + one throttled toast ("Subsystem fault — details in console").
+  Never spam more than 1 toast per 30s.
+
+ORD-702  Storage guard: wrap all localStorage writes; on QuotaExceeded show a
+  toast pointing to Export Data. IndexedDB prune keeps archive < ~5000 rows.
+
+ORD-703  Perf audit knobs: particle count scales with devicePixelRatio and
+  viewport area (already partly); add "Performance mode" setting = fx-off +
+  particles off + blur reduced (swap --blur to 8px via body class).
+
+ORD-704  A11y pass:
+  - Donuts/radar/map/networks each get an adjacent visually-hidden <table>
+    (or details/summary) mirroring their data (legend exists but add exact
+    values); aria-labels already partly done — complete them.
+  - All icon-only buttons: verify aria-label (bell, drag handles, expand).
+  - Chat log: role="log" aria-live="polite" (partial), ensure focus returns
+    to input after send; Esc closes chat overlay on mobile.
+  - Full keyboard path: palette (ORD-505), panel expand, modals trap focus.
+
+ORD-705  A tiny self-test page jarvis/test.html (dev only, not linked):
+  loads engine + data, runs assertions in plain JS (parseAmount cases: "₹1.2
+  lakh crore"→120000, "$3.1 billion"→~26505, "₹8,500 crore"→8500; sentiment
+  negation cases; XIRR known-answer case; SIP FV known-answer), renders
+  PASS/FAIL list. Run it after every engine change.
+
+================================================================================
+SECTION 8 — BACKLOG / ONLY IF EVERYTHING ABOVE IS DONE (P3)
+================================================================================
+ORD-801  Scenario sandbox: "what if NIFTY falls 10%?" — applies a uniform
+  shock by asset class beta (Equity 1.0, MF 0.85, Gold -0.1, Crypto 1.8,
+  Cash 0) to the book and shows the damage + emergency-fund runway. Pure math.
+ORD-802  Paper-trade mode: hypothetical positions ledger tracked separately,
+  scored vs entry date quotes, win-rate stats. Good training wheels.
+ORD-803  Weekly digest generator: compiles the week's archive into a
+  copy-to-clipboard markdown report (top patterns, flows delta, book delta).
+ORD-804  Compare-any-two dashboards: pick 2 sectors → merged panel of the two
+  clusters side by side.
+ORD-805  Import broker CSV (Zerodha tradebook format) → transactions.
+ORD-806  i18n scaffold for Hindi labels (structure only; content later).
+
+================================================================================
+SECTION 9 — EXPLICIT NON-GOALS (do NOT build)
+================================================================================
+X1. No AI/LLM API integration of any kind (user's explicit constraint).
+X2. No trading/broker order execution, no payment flows, no account linking.
+X3. No cloud backend, telemetry, analytics, or any data leaving the machine
+    (except outbound GETs to whitelisted public feed/quote hosts).
+X4. No framework migration, no bundler, no TypeScript conversion.
+X5. No paid API keys. If a free endpoint dies, degrade to simulation quietly.
+X6. Do not modify the e-commerce site files at the repo root (only additive
+    changes to .claude/launch.json are allowed).
+
+================================================================================
+SECTION 10 — SUGGESTED EXECUTION ORDER & EFFORT MAP
+================================================================================
+  Sprint 1 (foundations):   ORD-110, 101..109 (all S)          → stability
+  Sprint 2 (data):          ORD-201, 202, 203 (M/M/L)          → real + memory
+  Sprint 3 (engine):        ORD-301, 302, 303, 306 (M each)    → smarter dots
+  Sprint 4 (money):         ORD-401, 402, 403, 405 (L/M/M/M)   → real manager
+  Sprint 5 (money 2):       ORD-404, 406, 407, 408 (M each)
+  Sprint 6 (brain):         ORD-501..505 (S..M), 506 optional
+  Sprint 7 (spectacle):     ORD-601 (L), 602, 603, 604 (M each)
+  Sprint 8 (spectacle 2):   ORD-605..609 (S/M)
+  Sprint 9 (hardening):     ORD-701..705, then backlog items on request
+  Also do ORD-304/305/307 (engine extras) whenever between sprints.
+
+================================================================================
+SECTION 11 — SMOKE TEST (run after every sprint)
+================================================================================
+ 1. Fresh load with cleared sessionStorage → full boot plays, skippable,
+    app reveals, no console errors.
+ 2. All 6 views render with data; navigate via sidebar, hash, and (once
+    built) Ctrl+K + number keys.
+ 3. Intel: filter chips, search, tag click, "JARVIS, ANALYZE".
+ 4. FETCH LIVE with relay running → LIVE chip, new items, patterns recompute.
+    FETCH LIVE with relay stopped → graceful toast, SIM continues.
+ 5. Chat: "brief me", "where is the money going", "sip 15000 for 15 years at
+    12%", "add 10 Test at 100", follow-up "tell me more", "help".
+ 6. My Money: add/delete transaction, demo book, allocation donut, SIP
+    sliders live-update chart, budget gauge, XIRR shows sane number.
+ 7. Export data → wipe → import data → everything restored.
+ 8. Resize window across 1440/1024/610/375 — no horizontal scroll, all
+    canvases re-render; mobile chat FAB opens/closes the dock.
+ 9. Toggle: effects off, sound off, reduced-motion emulation, each theme —
+    text stays ≥ 4.5:1 contrast, charts keep validated palette.
+10. Kill the relay mid-session → no crashes; quotes/news fall back silently.
+
+================================================================================
+END OF ORDERS. Build it one sprint at a time, verify in the browser after
+each order, and keep JARVIS's manners intact. — Fable
+================================================================================

@@ -1,0 +1,409 @@
+================================================================================
+  J.A.R.V.I.S — UPGRADE ORDERS · PART III (THE DEEP LAYER)
+  Written by: Claude (Fable) · 2026-07-12
+  READ PARTS I & II FIRST. Part III goes beneath features: doctrine, exact
+  math, data contracts, persona, threat model, and the edge cases that decide
+  whether this tool can be TRUSTED. New orders use the 1500 series.
+  Ground rules of Part I Section 0 still bind everything here.
+================================================================================
+
+--------------------------------------------------------------------------------
+SECTION 1 — DOCTRINE: WHAT EDGE CAN THIS TOOL ACTUALLY GIVE?
+--------------------------------------------------------------------------------
+Be honest about the causal chain. News is priced into large caps within
+minutes by professionals with faster feeds and better models. A retail user
+with a news dashboard CANNOT win on speed — and the tool must not pretend
+otherwise. The three edges that ARE realistically available:
+
+E1. TIME-HORIZON ARBITRAGE. Institutions must perform quarterly; a person
+    can hold a 3-year capex theme through drawdowns. Multi-quarter themes
+    (gov capex cycles, PLI buildouts, energy transition) reward patience,
+    not reaction time. → The tool's center of gravity is THREADS and
+    PATTERN DELTAS over weeks (ORD-1002, ORD-203), not the live ticker.
+    The ticker is theater; the archive is the edge.
+
+E2. ATTENTION ARBITRAGE (SECOND ORDER). The market reprices the obvious
+    beneficiary in minutes (HAL on a fighter deal). It takes weeks to fully
+    reprice tier-2 and tier-3 of the value chain (forgings, connectors,
+    explosives, castings, testing houses). Mapping "who ELSE wins, later"
+    is encodable as static data and is the highest-alpha feature in this
+    entire program. → ORD-1501.
+
+E3. DISCIPLINE EDGE. Most retail losses come from process failure —
+    oversizing, chasing, no exit plan — not from lacking information. The
+    checklist gate, journal, sizing calculator and behavioral guardrails
+    (Part II sections E/F) are not accessories; they ARE the product.
+
+DESIGN CONSEQUENCES (bind these as rules):
+D1. THE APP NEVER HAS A BUY BUTTON. It records decisions; it never executes
+    or urges them. No "act now", no countdown urgency on ideas, ever.
+D2. Anti-speed principle: nothing auto-refreshes on an interval (R7 stands).
+    A calm tool that is right beats a twitchy tool that is fast.
+D3. Depth features (threads, value chains, deltas, accountability) always
+    outrank speed/spectacle features when sprints must be cut.
+
+--------------------------------------------------------------------------------
+SECTION 2 — PRE-MORTEM: "IT'S 2027 AND VEDANT STOPPED OPENING THE APP. WHY?"
+--------------------------------------------------------------------------------
+Five most likely deaths, and the mitigation each one demands:
+
+PM1. ROT — feeds silently died, relay not running, sim data feels stale,
+     the app feels like an abandoned aquarium. → Staleness must be VISIBLE
+     and graceful (ORD-1507), coverage panel (ORD-904), zero-maintenance
+     defaults (sim mode always works), yearly maintenance ritual (ORD-1512).
+PM2. DISTRUST — he once caught a wrong number (double-counted crore, stale
+     price shown as live) and never believed the dashboard again. Trust is
+     lost in one incident. → Integrity orders are P0 (ORD-901), every number
+     answers "says who / as of when" (ORD-306, 1507), accountability report
+     shows misses too (ORD-1003).
+PM3. OVERWHELM — the morning protocol crept from 1 minute to 10; panels
+     multiplied; opening the app feels like homework. → IA restraint is law
+     (ORD-1404), progressive disclosure, "no new sidebar items", the brief
+     must fit one screen.
+PM4. GUILT MIRROR — a drawdown made the app an anxiety object; avoidance
+     followed. → Persona rules on losses (Section 7), drawdown framing in
+     runway months (ORD-1203), "do nothing" as a valid verdict (ORD-1204),
+     never red-flash the net worth number.
+PM5. NOVELTY DECAY — the animations thrilled for a week, then annoyed.
+     → One-key calm: performance/fx modes already exist; add auto-suggest
+     after 10 sessions ("Shall I dial the theatrics down 20%, Sir?") — a
+     single polite offer, never repeated after refusal (fold into ORD-703).
+
+--------------------------------------------------------------------------------
+SECTION 3 — DATA CONTRACTS (canonical schemas; Sonnet must NOT improvise these)
+--------------------------------------------------------------------------------
+All timestamps epoch ms. All money in ₹ crore for market data, plain ₹ for
+personal finance. U.todayKey() = local "YYYY-MM-DD" (ORD-905) used everywhere.
+
+Signal        {id, key(hash of normalized title), t, b, s(source), cat,
+               firstSeen, lastSeen, url?, live, entities[], sectors[],
+               senti, impactRaw, impactPct, amountCr, sources[](names)}
+Group         (corroboration, ORD-301/901) {gid, memberKeys[], canonical
+               Signal, sourcesCount, amountCr = MAX(members), confirmed:bool}
+Flow          {gid, from(gov|foreign|institution|corporate), to(sector),
+               amountCr(signed; negative = outflow), h, title, sources[]}
+               INVARIANT: flows derive from Groups only, never raw Signals.
+Cluster       {sector, name, memberGids[], momentum, score(0-100), bull,
+               bear, neut, sourcesCount, flowsCr(deduped), topTag, narrative}
+Thread        {tid, gids[] (chronological), sector, company?, title,
+               chapters:[{date, headline, gid}], status: developing|dormant}
+Idea          {iid, kind(long|caution), sector, title, conviction,
+               components:{momentum, breadth, flow, coherence}, horizon,
+               thesis, catalysts[], risks[], watch[], clusterName}
+Txn           {id, date, side(BUY|SELL|DIV|ADJUST), name, type, qty, price,
+               symbol?, reasonTags[]?, note?, confidence?}
+               ADJUST: {ratio} — value-preserving (Section 4 · FIFO).
+Holding(view) computed: {name, type, symbol?, qty, avgCost(FIFO), cur,
+               curTs?, stale:bool}
+Goal          {gid, name, target, targetDate, linkedMonthly, createdAt}
+Thesis        {thid, title, sector, ideaRef?, stage, checklist:{...:bool},
+               exitCondition?, notes[], createdAt, decidedAt?, outcome?}
+AlertRule     {rid, kind(impact|sector|watchlist|priceLevel), params, on}
+AlertHit      {time, ruleRid, text, gid?|symbol?, read:bool}
+Rollup(daily) {date, signals, trackedCr(deduped), bullPct,
+               perSector:{sector:{count, impactSum, flowsCr}},
+               termCounts:{term:count}   ← REQUIRED for ORD-1001 (this
+               corrects Part I ORD-203, which omitted termCounts)}
+Snapshot      {date, netWorth, perClass:{...}}   (jarvis.history.v1)
+
+STORAGE REGISTRY (single source of truth; mirror in ARCHITECTURE.md):
+  localStorage: jarvis.settings.v1 · jarvis.portfolio.v2(txns) ·
+    jarvis.history.v1(rollups+snapshots) · jarvis.chat.v1 · jarvis.theses.v1 ·
+    jarvis.alerts.v1 · jarvis.expenses.v1 · jarvis.layout.v1 · jarvis.tour.v1 ·
+    jarvis.userdict.v1(ORD-1513)
+  IndexedDB "jarvis": store "signals"(key) · store "groups"(gid, optional)
+  sessionStorage: jarvis.booted
+
+BUS EVENTS (ORD-1301 contract — emit exactly these, document new ones):
+  data:updated {reason: sim|live|ingest}   portfolio:changed {}
+  quotes:updated {symbols[]}               settings:changed {key}
+  alert:fired {hit}                        view:changed {view}
+
+--------------------------------------------------------------------------------
+SECTION 4 — EXACT MATH (implement precisely; each formula gets a test)
+--------------------------------------------------------------------------------
+M1. NOVELTY z (ORD-1001): for term t with today-count c and daily history
+    over D days (require D ≥ 7 else "warming up"): winsorize history at its
+    95th percentile, μ = mean, σ = sd. z = (c − μ) / max(σ, √μ, 1).
+    Anomaly ⇔ z ≥ 3 AND c ≥ 3 AND distinct sources ≥ 2. If a bigram and its
+    unigrams all fire, keep only the bigram. Cap displayed anomalies at 6.
+M2. SIMILARITY: 3-word shingles of lowercased title; Jaccard J = |A∩B|/|A∪B|.
+    J ≥ 0.55 → duplicates (merge into Group). 0.35 ≤ J < 0.55 → thread
+    candidates. Also duplicate if same sector AND same company AND amounts
+    within ±10% within 72h.
+M3. IMPACT PERCENTILE (ORD-903): impactPct = round(100·rank/(n+1)), ties
+    averaged, clamped 1..99. Keep impactRaw for archive comparability.
+M4. RECENCY DECAY: w(h) = exp(−h·ln2/48) — 48h half-life; items older than
+    7 days leave live momentum entirely (they persist in rollups).
+M5. CONVICTION v2: conv = clamp(0.40·clusterScore
+      + 0.20·min(sources/6,1)·100
+      + 0.20·min(log10(max(flowsCr,1))/6,1)·100
+      + 0.20·(((bull−bear)/members)+1)/2·100, 20, 96)
+    Store the four components on the Idea for the lineage tooltip.
+M6. XIRR: Newton-Raphson from r=0.10, ≤60 iterations, tolerance 1e-7; on
+    divergence fall back to bisection on [−0.9999, 10]. Preconditions: ≥2
+    flows, both signs present, span ≥ 30 days — else display "—". Buys are
+    negative flows, sells/dividends positive, terminal book value positive.
+M7. FIFO LOTS: per (name|symbol) a lot queue. SELL consumes oldest lots;
+    qty greater than held → reject with a clear toast (no negative lots).
+    Realized P&L = Σ(sellPx − lotPx)·qtyConsumed. ADJUST(ratio) multiplies
+    every open lot qty by ratio, divides its price by ratio — INVARIANT:
+    total cost value unchanged to 1e-6 (assert in test).
+M8. SIP FV (exists) and STEP-UP SIP: contributions grow g% annually:
+    FV = Σ_year a_y · fvFactor(months remaining), a_y = a·(1+g)^y — implement
+    by monthly loop (already the pattern in sipArea), don't derive closed form.
+M9. GOAL REQUIRED MONTHLY: solve FV formula for the monthly amount at the
+    assumed CAGR over remaining months; if targetDate past → show "date
+    passed, Sir" state, never divide by zero.
+
+--------------------------------------------------------------------------------
+SECTION 5 — NEW ORDERS (1500 SERIES)
+--------------------------------------------------------------------------------
+ORD-1501  VALUE-CHAIN MAPS — "who else wins, later". [P1 · flagship of Part III]
+  JDATA.VALUE_CHAINS: per sector, 3 tiers of the supply/beneficiary chain,
+  hand-curated once:
+    tier1 PRIMES (repriced in minutes — e.g. defence: HAL, BEL),
+    tier2 SYSTEMS/COMPONENTS (repriced in days-weeks — forgings, electronics,
+          wiring, optics: Bharat Forge, Astra Microwave, Data Patterns...),
+    tier3 INPUTS/SERVICES (repriced last — specialty steel, explosives,
+          testing, MRO: Solar Inds, Mishra Dhatu...)
+  Each entry: {name, role, note}. UI: "WHO ELSE WINS" cascade on pattern and
+  idea cards — three glass columns with animated connectors flowing left to
+  right (respect FX.enabled), tier badges T1/T2/T3, each name clickable →
+  Intel search. Jarvis intent: "second order plays in defence".
+  Copy discipline: header carries "for research — reprice lags are
+  tendencies, not laws." This encodes E2 into the product.
+
+ORD-1502  CORPORATE ACTIONS TOOL. [P1 — a correctness landmine if skipped]
+  Splits/bonuses silently halve prices and create phantom losses in any
+  portfolio tool. (a) Manual ADJUST action per holding: dialog "ratio 2:1 /
+  1:2 / custom" → creates an ADJUST Txn (M7) with note; ledger shows it.
+  (b) DIV transaction type: dividend received (cash in, qty unchanged,
+  feeds XIRR). (c) Detection heuristic when quotes are live: price moved
+  >40% overnight vs stored cur → amber flag on the row: "possible corporate
+  action — verify and use ADJUST", NEVER auto-adjust.
+
+ORD-1503  AMFI NAV SYNC (mutual funds, free, keyless, official). [P1]
+  AMFI publishes all MF NAVs as plain text: amfiindia.com/spages/NAVAll.txt
+  (Scheme Code;ISIN;ISIN2;Scheme Name;NAV;Date — ~2MB). Relay endpoint
+  /amfi (cache 6h, add host to whitelist). Client: holdings of type MF get
+  one-time fuzzy match (substring scoring on scheme name) with a
+  confirm-picker; store schemeCode on the holding; SYNC PRICES then updates
+  MF NAVs alongside Yahoo equities. This makes the Indian MF part of the
+  book genuinely accurate — most "net worth apps" get this wrong.
+
+ORD-1504  VERIFICATION TRAIL. [P2]
+  Static JDATA.VERIFY map: claimType → where a human verifies it (no URLs
+  needed, name the source): order wins → exchange filings (BSE/NSE
+  announcements); financials → annual report + screener-type sites;
+  promoter pledge → shareholding pattern filings; govt allocations → budget
+  documents/PIB; margins guidance → earnings call transcripts.
+  Every idea card gets a "VERIFY THIS YOURSELF" expandable listing the 3
+  relevant trails for its claim types. Turns ideas from assertions into
+  homework assignments — exactly right for G8.
+
+ORD-1505  SUNDAY REVIEW MODE (guided weekly ritual). [P2]
+  A 6-step guided flow (glass wizard, ~15 min): 1 new threads since last
+  review → 2 thesis board grooming (stale RESEARCHING items nudged) →
+  3 expense quick-log for the week → 4 goals delta → 5 one journal prompt
+  ("Best decision this week? One thing to stop?" — free text saved) →
+  6 backup reminder if last export > 30 days. Gentle streak counter
+  (weeks reviewed), no shame on breaks. Entry point: Command Center card
+  that appears on weekends + "review" intent.
+
+ORD-1506  PERF HUD + BUDGETS. [P2, dev aid]
+  Settings toggle "diagnostics": overlay chip showing FPS (rAF delta EMA),
+  active loop count (App._stops length), JS heap (performance.memory when
+  available), last render duration per view. BUDGETS to hold: boot→
+  interactive < 2.5s; idle CPU with fx on < ~6%; visible canvas loops ≤ 2;
+  ingest of 200 items < 150ms; DOM nodes per view < 3000. test.html gains a
+  perf case that times Engine.run on a 200-item synthetic corpus.
+
+ORD-1507  STALENESS DOCTRINE (UX rule + implementation). [P1]
+  EVERY data element that can age carries its age: quotes ("synced 14:32",
+  amber ≥ 15 min, grey/stale ≥ 1 day), news mode chip (SIM / LIVE·HH:MM),
+  rollup-derived charts ("as of yesterday"), AMFI NAVs (date from the file).
+  One shared helper renders these stamps consistently (U.staleness(ts)).
+  A dashboard that admits its age keeps trust when it can't be fresh (PM1,
+  PM2).
+
+ORD-1508  BACKUP HYGIENE + ENCRYPTION. [P1 — this repo syncs to OneDrive]
+  (a) Add to repo .gitignore: jarvis-backup-*.json (and jarvis/icons/*.png
+      if generated locally is fine to commit — icons yes, backups NEVER).
+  (b) Export dialog warns: "Contains your full financial ledger. Keep it
+      out of the repo and out of synced folders you don't trust."
+  (c) Optional passphrase encryption: WebCrypto PBKDF2(150k iters, SHA-256)
+      → AES-GCM; file header {v, salt, iv}; import detects and prompts.
+      Default ON suggestion when goals/txns exist. Forgotten passphrase =
+      unrecoverable file — say so at export time.
+
+ORD-1509  RELAY THREAT-MODEL FIXES. [P0-adjacent, do with ORD-201]
+  Bind 127.0.0.1 EXPLICITLY (never 0.0.0.0 — a laptop on hostel/café wifi
+  must not serve a proxy to the LAN). Access-Control-Allow-Origin: lock to
+  the exact app origin (http://localhost:5500) instead of *. GET only,
+  2MB body cap, strip Set-Cookie, whitelist enforced by hostname EXACT
+  match (no substring checks — "evil-news.google.com.attacker.io" must fail).
+  Log to memory only, never to disk.
+
+ORD-1510  MICROCOPY SYSTEM. [P2, small]
+  One pass to standardize: panel labels ALL-CAPS mono ≤ 18 chars; status
+  vocabulary fixed set {LIVE, SIM, STALE, SYNCING, OFFLINE, WARMING UP};
+  every empty state = what's missing + one action button; every error =
+  what failed · what still works · what to do next; negative numbers use
+  true minus "−"; tabular-nums on all data columns (mostly done). Add a
+  MARKET chip near the clock: OPEN (IST 09:15–15:30 Mon–Fri) / CLOSED /
+  WEEKEND — with the honest caveat that exchange holidays aren't tracked
+  (tooltip: "holiday calendar not loaded").
+
+ORD-1511  FUTURE-AI SEAM (boundary only — build nothing). [P3]
+  The user may allow an LLM "later". Keep exactly three functions isolated
+  and rule-based today so a future swap is one file, not a rewrite:
+  Summarize(items)→string (ORD-1004), ParseIntent(text)→{intent,slots}
+  (Jarvis.handle's matcher), CritiqueThesis(thesis)→string[] (checklist
+  nags). Comment each: "seam: replaceable backend". Do NOT add any API
+  plumbing now.
+
+ORD-1512  ANNUAL MAINTENANCE PROTOCOL. [P2, mostly docs]
+  A dated checklist in ARCHITECTURE.md + a once-a-year gentle reminder
+  (first open after Jan 15): refresh JDATA.EVENTS dates (MPC/budget/expiry),
+  verify feeds alive (coverage panel makes this visible), re-check Yahoo/
+  AMFI endpoints, review USD_INR default, export a yearly backup, and run
+  ORD-1513's dictionary review. Keeps the tool from rotting (PM1).
+
+ORD-1513  DICTIONARY EVOLUTION (the system learns vocabulary, human-gated).
+  [P2 · elegant loop] Anomaly terms (ORD-1001) that recur across ≥ 3
+  separate weeks accumulate in a candidates list (settings → "Lexicon").
+  Each shows term, weeks seen, sample headlines, and a "PROMOTE" button →
+  user assigns sector/tag → saved to jarvis.userdict.v1, merged into
+  JDATA.KEYWORDS at load. The keyword net grows with reality, with a human
+  confirming every addition. No AI, no drift.
+
+--------------------------------------------------------------------------------
+SECTION 6 — EDGE-CASE INVENTORY (each becomes a test.html assertion)
+--------------------------------------------------------------------------------
+ENGINE: empty corpus (all zeros, no NaN) · single item (no clusters, no
+  division by zero) · all-bearish corpus (bias 0%, threat board full) ·
+  item with 2 amounts takes max · "₹0 crore" ignored · headline ending "?"
+  halves verb weight · same story 4 sources → 1 group, 1 flow, impact boost.
+THREADS: A~B and B~C but not A~C → one thread (transitive closure), no
+  cycles, chapters date-ordered.
+PORTFOLIO: SELL > held rejected · ADJUST preserves value to 1e-6 · backdated
+  txn inserts in order and recomputes FIFO · two holdings same name
+  different symbol stay separate · XIRR "—" under preconditions ·
+  demo book load is idempotent (no duplicates on double click).
+QUOTES: symbol fails → old price kept + stale amber, never 0 · price −55%
+  overnight → corporate-action flag, no auto change · relay down mid-sync →
+  partial results applied, rest stale.
+EXPENSES: entry at 23:59 vs 00:01 lands in correct months · negative amount
+  rejected.
+GOALS: past targetDate → "date passed" state · target below current value →
+  100% + celebrated once (ORD-1205), not every load.
+ALERTS: same rule can't fire twice for the same gid/level-cross · 51st hit
+  evicts the oldest.
+ARCHIVE: rollup written exactly once per local day even across midnight with
+  the tab open (ORD-905) · 91-day-old signals pruned · IDB unavailable
+  (private mode) → app fully functional, archive features show "no memory
+  available" states.
+CHAT: 300-char paste doesn't break layout · restored history doesn't retype
+  or re-speak · "clear" wipes store and view atomically.
+BACKUP: import of a corrupted/truncated file → clear error, NOTHING
+  overwritten (validate fully before applying) · encrypted import with wrong
+  passphrase → clear error, no partial state.
+
+--------------------------------------------------------------------------------
+SECTION 7 — PERSONA BIBLE (JARVIS's voice is a feature; keep it consistent)
+--------------------------------------------------------------------------------
+VOICE: British-butler restraint. Competence over enthusiasm. Numbers before
+adjectives. Short sentences. Never sycophantic, never scolding. "Sir" or the
+configured name. No emoji, no exclamation marks (sole exception: party
+protocol). Dry wit rationed to ≤ 1 quip per 6 exchanges, never about losses.
+
+SITUATIONAL LINES (style anchors — write variants in this register):
+  gain:      "The book is up 1.8% this week. Adequate. The plan continues."
+  loss:      "Down 2.1% this month — entirely the crypto sleeve; the equity
+             core is flat. The plan does not require action."
+  anomaly:   "The wires are suddenly loud about 'uranium' — nine mentions,
+             four sources, no prior baseline. Worth ten minutes, Sir."
+  no edge:   "Nothing on the board clears the bar today. The correct trade
+             is patience."
+  error:     "The uplink failed. The simulation continues; nothing you rely
+             on is affected."
+  wrong:     "For the record: the March logistics pattern went nowhere —
+             it's in the report card. Calibration noted."
+  nudge cap: at most ONE unsolicited remark per session (alerts excepted).
+SILENCE RULES: JARVIS speaks uninvited only for: the daily first-open brief,
+a fired alert, a goal milestone. Never interrupts typing. Never repeats a
+declined suggestion (persist declined flags).
+TTS: expand "₹27.53 L cr" → "27.53 lakh crore rupees"; strip markup and
+bullets before speaking (partially done — verify).
+
+--------------------------------------------------------------------------------
+SECTION 8 — THE HUMAN PROTOCOLS (the tool implies a routine; design it)
+--------------------------------------------------------------------------------
+DAILY (1 min): open → auto-brief → at most one click of curiosity. The
+  morning screen contains no transactional actions (D1 makes this true).
+WEEKLY (15 min): Sunday Review (ORD-1505).
+MONTHLY (10 min): read the accountability report card; check rebalance
+  drift; export a backup (reminder on the 1st, dismissible).
+YEARLY (1 hr): maintenance protocol (ORD-1512) + lexicon review (ORD-1513).
+The app supports each ritual but never guilt-trips a missed one. Streaks
+inform, never shame.
+
+--------------------------------------------------------------------------------
+SECTION 9 — THREAT MODEL (personal-finance data deserves one)
+--------------------------------------------------------------------------------
+ASSETS: transactions/goals/expenses (sensitive) · theses/journal (private
+  thoughts) · archive (low) · settings (low).
+EXPOSURES & MITIGATIONS:
+  T1 Repo syncs to OneDrive + git remotes → backups must never enter the
+     repo (ORD-1508a/b). Nothing in-app writes files into the repo.
+  T2 LAN neighbors → relay binds 127.0.0.1, exact-hostname whitelist,
+     locked CORS origin (ORD-1509).
+  T3 Malicious RSS payloads → U.esc everywhere (G4), CSP (ORD-1303),
+     rel=noopener on external links (done), feed content is data never
+     instructions.
+  T4 Shared/stolen laptop → an in-app PIN would be THEATER (localStorage is
+     readable by anyone at the keyboard with devtools); REJECT app-level
+     locks; the honest answer is OS user-account separation + encrypted
+     backups (ORD-1508c). Say this in ARCHITECTURE.md.
+  T5 Voice input → Chrome STT is cloud-processed; wake word stays opt-in
+     with visible armed state (Part II amendment stands).
+  T6 Clipboard/exports → "copy brief" excludes personal book numbers by
+     default; including them is an explicit checkbox.
+  T7 Future-self mistakes → confirm-modals on destructive actions (done),
+     import validates fully before applying (Section 6), storage versioning
+     with one-way migrations (G9).
+
+--------------------------------------------------------------------------------
+SECTION 10 — CORRECTIONS & DEPENDENCY NOTES FOR PARTS I/II
+--------------------------------------------------------------------------------
+C1. Part I ORD-203's daily rollup schema is superseded by Section 3's Rollup
+    (adds termCounts). Build it right the first time or ORD-1001 stalls.
+C2. ORD-1301 (bus) and ORD-1302 (types) precede the archive and everything
+    after — Part II Section J already sequences this; do not skip them to
+    "get to features faster."
+C3. ORD-1509 merges INTO ORD-201 (build the relay hardened from day one).
+    ORD-1508a (.gitignore) lands in Sprint 1 with ORD-110.
+C4. ORD-1503 (AMFI) slots into Sprint 12 with quotes; ORD-1502 (corporate
+    actions) into Sprint 7 with transactions — it changes the Txn schema,
+    cheaper to include from the start than to migrate later.
+C5. ORD-1501 (value chains) and ORD-1504 (verification trail) join Sprint 15;
+    ORD-1505 (Sunday review) Sprint 16; ORD-1506/1510 Sprint 17;
+    ORD-1512/1513 after 30+ days of archive exist.
+C6. Conviction v2 (M5) supersedes the v1 formula in engine.js when Sprint 5
+    lands; keep both behind a flag for one sprint to compare outputs, then
+    delete v1.
+
+--------------------------------------------------------------------------------
+SECTION 11 — FINAL WORD: THE HIERARCHY
+--------------------------------------------------------------------------------
+When any two orders conflict, resolve by this ranking:
+  1. TRUTH      — numbers that can answer "says who, as of when".
+  2. CALM       — no urgency theater, no twitch loops, silence is an output.
+  3. DISCIPLINE — process gates over predictions, journals over hunches.
+  4. DELIGHT    — the glow, the sweep, the voice. Load-bearing joy, last.
+Build a tool the user still trusts — and still enjoys opening — in five
+years. That, Sir, is the whole mission.
+================================================================================
+END OF PART III — Fable
+================================================================================

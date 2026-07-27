@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S — Economic Intelligence</title>
+<meta name="description" content="JARVIS — a personal economic intelligence assistant. Tracks news, connects patterns, follows the big money and drafts investing research.">
+<meta name="theme-color" content="#04060d">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' http://localhost:5510 https://api.allorigins.win https://corsproxy.io https://api.rss2json.com https://query1.finance.yahoo.com https://www.amfiindia.com; object-src 'none'; base-uri 'self'; form-action 'self';">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%2338e1ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%2338e1ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/fx.css">
+</head>
+<body data-palette="#0096b8,#bd8a16,#8a63f0,#e0489a,#3b82f6,#0da271">
+
+<!-- ==================== SVG ICON SPRITE ==================== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></symbol>
+    <symbol id="i-satellite" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3M6.3 6.3l2.1 2.1m7.2 7.2 2.1 2.1m0-11.4-2.1 2.1m-7.2 7.2-2.1 2.1"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-network" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="19" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" d="m6.7 7.6 3.9 8.2m6.7-8.2-3.9 8.2M7.2 6h9.6"/></symbol>
+    <symbol id="i-flow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 7h12m0 0-3-3m3 3-3 3M20 17H8m0 0 3-3m-3 3 3 3"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 18h6m-5 3h4M12 3a6 6 0 0 0-4 10.5c.8.7 1 1.6 1 2.5h6c0-.9.2-1.8 1-2.5A6 6 0 0 0 12 3Z"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1h-6a3 3 0 0 0 0 6h6v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" d="M21 10v4h-8a2 2 0 1 1 0-4h8Z"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="m4 12 16-7-4.5 14L11 13l-7-1Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" d="M11 13l9-8"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 2.5v3m0 13v3M4.9 4.9l2.1 2.1m10 10 2.1 2.1M2.5 12h3m13 0h3M4.9 19.1 7 17m10-10 2.1-2.1"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m3 0-1 13H7L6 7m4 4v6m4-6v6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="m16.5 16.5 4 4"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 9v6h4l5 4V5L8 9H4Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M16 9a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-vol-off" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 9v6h4l5 4V5L8 9H4Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="m16 9 5 6m0-6-5 6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 17 10 11l4 4 6-7m0 0h-4.5M20 8v4.5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 7l6 6 4-4 6 7m0 0h-4.5m4.5 0v-4.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 4 2.8 19.5h18.4L12 4Z"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 10v4"/><circle cx="12" cy="16.8" r="0.4" fill="currentColor" stroke="currentColor"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 3l1.8 5.7L19.5 10l-5.7 1.8L12 17.5l-1.8-5.7L4.5 10l5.7-1.3L12 3Z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M10 14a4 4 0 0 0 6 .4l3-3a4 4 0 0 0-5.6-5.6l-1.6 1.6M14 10a4 4 0 0 0-6-.4l-3 3a4 4 0 0 0 5.6 5.6l1.6-1.6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 3 5 6v5c0 5 3 8.4 7 10 4-1.6 7-5 7-10V6l-7-3Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-clockicon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.6" d="M3.5 12h17M12 3.5c-2.5 2.3-3.8 5.2-3.8 8.5s1.3 6.2 3.8 8.5c2.5-2.3 3.8-5.2 3.8-8.5S14.5 5.8 12 3.5Z"/></symbol>
+    <symbol id="i-bank" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3 9.5 12 4l9 5.5M5 10v7m4.6-7v7m4.8-7v7M19 10v7M3 20h18"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4V6Z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<!-- ==================== BOOT SEQUENCE ==================== -->
+<div id="boot" role="status" aria-live="polite">
+  <div class="boot-stars" aria-hidden="true"></div>
+  <div class="boot-core">
+    <div class="reactor xl" aria-hidden="true">
+      <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
+      <span class="core"></span>
+      <span class="tick t1"></span><span class="tick t2"></span><span class="tick t3"></span>
+    </div>
+    <h1 class="boot-title">J.A.R.V.I.S</h1>
+    <p class="boot-sub">JUST A RATHER VERY INTELLIGENT SYSTEM · ECONOMIC PROTOCOL</p>
+    <div class="boot-log mono" id="bootLog"></div>
+    <div class="boot-bar"><i id="bootBar"></i></div>
+    <button class="boot-skip mono" id="bootSkip" type="button">TAP TO SKIP ▸</button>
+  </div>
+</div>
+
+<!-- ==================== AMBIENT BACKGROUND ==================== -->
+<canvas id="bgParticles" aria-hidden="true"></canvas>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="aurora a1" aria-hidden="true"></div>
+<div class="aurora a2" aria-hidden="true"></div>
+<div class="aurora a3" aria-hidden="true"></div>
+<div class="scanline" aria-hidden="true"></div>
+<div id="cursorGlow" aria-hidden="true"></div>
+<div id="cursorDot" aria-hidden="true"></div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div id="app" class="app" hidden>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar glass" aria-label="Primary navigation">
+    <a class="brand" href="#command" aria-label="JARVIS home">
+      <span class="reactor sm" aria-hidden="true"><span class="ring r1"></span><span class="ring r2"></span><span class="core"></span></span>
+      <span class="brand-text">
+        <b class="display">JARVIS</b>
+        <i class="mono">ECON.SYS v4.2</i>
+      </span>
+    </a>
+    <nav class="side-nav">
+      <button class="nav-item active" data-view="command"><svg class="ic"><use href="#i-grid"/></svg><span>Command Center</span><i class="nav-glow"></i></button>
+      <button class="nav-item" data-view="intel"><svg class="ic"><use href="#i-satellite"/></svg><span>Intel Feed</span><i class="nav-glow"></i></button>
+      <button class="nav-item" data-view="patterns"><svg class="ic"><use href="#i-network"/></svg><span>Patterns</span><i class="nav-glow"></i></button>
+      <button class="nav-item" data-view="flows"><svg class="ic"><use href="#i-flow"/></svg><span>Money Flow</span><i class="nav-glow"></i></button>
+      <button class="nav-item" data-view="ideas"><svg class="ic"><use href="#i-bulb"/></svg><span>Ideas Lab</span><i class="nav-glow"></i></button>
+      <button class="nav-item" data-view="portfolio"><svg class="ic"><use href="#i-wallet"/></svg><span>My Money</span><i class="nav-glow"></i></button>
+    </nav>
+    <div class="side-foot">
+      <div class="sys-meter">
+        <div class="sys-row mono"><span>PATTERN ENGINE</span><b id="sysPatterns">—</b></div>
+        <div class="sys-row mono"><span>SIGNALS</span><b id="sysSignals">—</b></div>
+        <div class="sys-row mono"><span>CAPITAL TRACKED</span><b id="sysCapital">—</b></div>
+      </div>
+      <p class="side-note mono">FOR RESEARCH & EDUCATION.<br>NOT FINANCIAL ADVICE.</p>
+    </div>
+  </aside>
+
+  <!-- MAIN COLUMN -->
+  <div class="main-col">
+    <header class="topbar glass">
+      <div class="tb-left">
+        <span class="crumb mono">SYS ▸</span>
+        <h1 id="viewTitle" class="display">COMMAND CENTER</h1>
+      </div>
+      <div class="ticker" aria-label="Market ticker (simulated)">
+        <div class="ticker-track" id="tickerTrack"></div>
+        <span class="ticker-fade l" aria-hidden="true"></span>
+        <span class="ticker-fade r" aria-hidden="true"></span>
+      </div>
+      <div class="tb-right">
+        <span class="mode-chip mono" id="modeChip" title="Data mode">SIM FEED</span>
+        <span class="clock mono" id="clock" aria-label="Current time">--:--:--</span>
+        <button class="icon-btn" id="btnSundayReview" aria-label="Sunday review" title="Sunday review — weekly calibration check"><svg class="ic"><use href="#i-clockicon"/></svg></button>
+        <button class="icon-btn" id="btnVoice" aria-label="Toggle JARVIS voice" aria-pressed="false" title="JARVIS voice"><svg class="ic"><use href="#i-vol-off"/></svg></button>
+        <button class="icon-btn" id="btnSettings" aria-label="Settings" title="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
+        <button class="icon-btn chat-fab-inline" id="btnChatToggle" aria-label="Toggle JARVIS chat" title="JARVIS chat"><svg class="ic"><use href="#i-chat"/></svg></button>
+      </div>
+    </header>
+
+    <main id="views" tabindex="-1">
+
+      <!-- ============ VIEW: COMMAND CENTER ============ -->
+      <section id="view-command" class="view active" aria-label="Command center">
+        <div class="greet reveal">
+          <h2 class="greet-line display" id="greetLine">Good evening, Sir.</h2>
+          <p class="greet-sub" id="greetSub">Calibrating economic sensors…</p>
+          <div class="chip-row" id="greetChips"></div>
+        </div>
+
+        <div class="kpi-row" id="kpiRow"></div>
+
+        <div class="grid cc-grid">
+          <article class="panel glass tilt sheen reveal cc-radar">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-target"/></svg> SECTOR RADAR</h3>
+              <span class="panel-tag mono" id="radarTag">LIVE SWEEP</span>
+            </header>
+            <div class="radar-wrap">
+              <canvas id="radarCanvas" role="img" aria-label="Radar of sector activity"></canvas>
+              <div class="radar-tip mono" id="radarTip" hidden></div>
+            </div>
+            <div class="legend" id="radarLegend"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal cc-flows">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-flow"/></svg> WHERE THE BIG MONEY IS GOING</h3>
+              <button class="link-btn mono" data-goto="flows">FULL MAP <svg class="ic"><use href="#i-chev"/></svg></button>
+            </header>
+            <div class="flowbars" id="miniFlows"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal cc-patterns">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-network"/></svg> PATTERNS DETECTED</h3>
+              <button class="link-btn mono" data-goto="patterns">ALL <svg class="ic"><use href="#i-chev"/></svg></button>
+            </header>
+            <div class="stack" id="topPatterns"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal cc-ideas">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-bulb"/></svg> PRIME OPPORTUNITIES</h3>
+              <button class="link-btn mono" data-goto="ideas">IDEAS LAB <svg class="ic"><use href="#i-chev"/></svg></button>
+            </header>
+            <div class="stack" id="topIdeas"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal cc-intel">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-satellite"/></svg> HIGH-IMPACT INTEL</h3>
+              <button class="link-btn mono" data-goto="intel">FEED <svg class="ic"><use href="#i-chev"/></svg></button>
+            </header>
+            <div class="stack" id="topIntel"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal cc-honesty">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-shield"/></svg> HONESTY PANEL</h3>
+              <span class="panel-tag mono" id="honestyEngineTag"></span>
+            </header>
+            <div id="honestyCaveat"></div>
+            <div id="honestyMetrics"></div>
+            <div class="gauge-wrap" style="margin-top:12px">
+              <div class="gauge-label">LOCAL STORAGE USED</div>
+              <div class="gauge"><i id="quotaGauge"></i></div>
+            </div>
+            <div class="stack" id="honestyAlerts" style="margin-top:12px"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal cc-threats">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-alert"/></svg> THREAT BOARD</h3>
+              <span class="panel-tag mono">BEARISH CLUSTERS</span>
+            </header>
+            <div class="stack" id="threatBoard"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: INTEL FEED ============ -->
+      <section id="view-intel" class="view" aria-label="Intelligence feed">
+        <div class="toolbar glass reveal">
+          <div class="chip-row" id="intelFilters" role="tablist" aria-label="Filter news by category"></div>
+          <div class="toolbar-right">
+            <label class="search-box" for="intelSearch">
+              <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+              <input id="intelSearch" type="search" placeholder="Search signals, entities, sectors…" autocomplete="off">
+            </label>
+            <button class="btn btn-primary" id="btnLive"><svg class="ic"><use href="#i-refresh"/></svg><span>FETCH LIVE</span></button>
+          </div>
+        </div>
+        <p class="feed-meta mono reveal" id="intelMeta"></p>
+        <div class="intel-list" id="intelList"></div>
+        <details class="quarantine-box glass" id="intelQuarantine" hidden></details>
+      </section>
+
+      <!-- ============ VIEW: PATTERNS ============ -->
+      <section id="view-patterns" class="view" aria-label="Pattern detection">
+        <div class="view-intro reveal">
+          <h2 class="display">CONNECTING THE DOTS</h2>
+          <p>Signals that repeat across independent sources form patterns. Patterns show where conviction — and capital — is quietly building.</p>
+        </div>
+        <article class="panel glass tilt sheen reveal" id="crossCurrentPanel" hidden>
+          <header class="panel-head">
+            <h3><svg class="ic"><use href="#i-target"/></svg> CROSS-CURRENTS</h3>
+            <span class="panel-tag mono">DISAGREEMENT, NOT AVERAGED</span>
+          </header>
+          <div class="crosscurrent" id="crossCurrentBody"></div>
+        </article>
+
+        <article class="panel glass tilt sheen reveal">
+          <header class="panel-head">
+            <h3><svg class="ic"><use href="#i-alert"/></svg> ANOMALIES THIS SESSION</h3>
+            <span class="panel-tag mono">SONAR — READ-ONLY, NOT YET ALERTING</span>
+          </header>
+          <div id="sonarBody"></div>
+        </article>
+
+        <article class="panel glass tilt sheen reveal">
+          <header class="panel-head">
+            <h3><svg class="ic"><use href="#i-globe"/></svg> SCENARIO STRESS TEST</h3>
+            <span class="panel-tag mono" id="causalCountTag"></span>
+          </header>
+          <p class="feed-meta mono" style="margin-bottom:10px">Propagate a macro shock one step through the causal graph to your holdings. Net-average direction only — no magnitude, no feedback loops.</p>
+          <div class="mirror-strip" style="margin-bottom:12px">
+            <label class="mono" style="font-size:.72rem;color:var(--txt-2)">SHOCK
+              <select id="scenarioSelect" style="margin-left:8px;min-height:38px"></select>
+            </label>
+            <button class="btn btn-ghost" id="btnRunScenario">RUN</button>
+          </div>
+          <div id="scenarioResult"></div>
+          <details class="quarantine-box glass" style="margin-top:14px">
+            <summary>All causal edges</summary>
+            <div class="table-wrap causal-table-wrap" style="margin-top:8px">
+              <table class="data-table" aria-label="Causal graph edges">
+                <thead><tr><th>FROM</th><th>TO</th><th>SIGN</th><th class="num">LAG</th><th>WHY</th></tr></thead>
+                <tbody id="causalBody"></tbody>
+              </table>
+            </div>
+          </details>
+        </article>
+
+        <div class="pattern-grid" id="patternList"></div>
+      </section>
+
+      <!-- ============ VIEW: MONEY FLOW ============ -->
+      <section id="view-flows" class="view" aria-label="Money flow map">
+        <div class="view-intro reveal">
+          <h2 class="display">FOLLOW THE MONEY</h2>
+          <p>Every disclosed rupee and dollar in the feed, traced from its source to the sector it lands in.</p>
+        </div>
+        <div class="kpi-row" id="flowStats"></div>
+        <div class="grid flow-grid">
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-flow"/></svg> CAPITAL DESTINATIONS</h3>
+              <span class="panel-tag mono">BY DISCLOSED VALUE</span>
+            </header>
+            <div class="flowbars lg" id="flowChart"></div>
+          </article>
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-bank"/></svg> SOURCES OF CAPITAL</h3>
+            </header>
+            <div class="donut-wrap">
+              <canvas id="flowDonut" role="img" aria-label="Donut chart of capital sources"></canvas>
+              <div class="donut-center" id="flowDonutCenter"></div>
+            </div>
+            <div class="legend" id="flowDonutLegend"></div>
+          </article>
+        </div>
+        <article class="panel glass reveal">
+          <header class="panel-head"><h3><svg class="ic"><use href="#i-globe"/></svg> FLOW LEDGER</h3></header>
+          <div class="table-wrap">
+            <table class="data-table" id="flowTable">
+              <thead><tr><th>SOURCE</th><th>DESTINATION</th><th class="num">AMOUNT</th><th>SIGNAL</th></tr></thead>
+              <tbody id="flowTableBody"></tbody>
+            </table>
+          </div>
+          <p class="feed-meta mono" id="flowRateNote" style="margin-top:2px"></p>
+        </article>
+      </section>
+
+      <!-- ============ VIEW: IDEAS ============ -->
+      <section id="view-ideas" class="view" aria-label="Investment ideas lab">
+        <div class="disclaimer glass reveal" role="note">
+          <svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>
+          <p><b>Research protocol, Sir — not orders.</b> These are machine-drafted theses from news patterns, for education. Verify fundamentals & valuations before deploying capital. Markets carry risk of loss.</p>
+        </div>
+        <div class="watch-strip glass reveal" id="watchStrip" hidden>
+          <span class="mono ws-label">WATCHLIST ▸</span><div class="chip-row" id="watchChips"></div>
+        </div>
+        <div class="grid mirror-grid reveal">
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-bulb"/></svg> PREDICTION BOOK</h3>
+              <button class="link-btn mono" id="btnNewPrediction">+ NEW</button>
+            </header>
+            <p class="feed-meta mono" id="brierSummary"></p>
+            <div class="stack" id="predictionsList"></div>
+          </article>
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-spark"/></svg> JOURNAL</h3>
+              <button class="link-btn mono" id="btnNewJournal">+ NEW</button>
+            </header>
+            <div class="stack journal-list" id="journalList"></div>
+          </article>
+        </div>
+        <div class="idea-grid" id="ideaGrid"></div>
+      </section>
+
+      <!-- ============ VIEW: PORTFOLIO ============ -->
+      <section id="view-portfolio" class="view" aria-label="Portfolio and money manager">
+        <div class="pf-hero glass tilt sheen reveal">
+          <div class="pf-hero-main">
+            <p class="mono pf-label">NET WORTH UNDER MANAGEMENT</p>
+            <h2 class="pf-value display money" id="nwValue">₹0</h2>
+            <p class="pf-delta mono" id="nwDelta">Add holdings and I shall keep the books, Sir.</p>
+          </div>
+          <div class="pf-hero-actions">
+            <button class="btn btn-primary" id="btnAddHolding"><svg class="ic"><use href="#i-plus"/></svg><span>ADD HOLDING</span></button>
+            <button class="btn btn-ghost" id="btnDemoPf"><svg class="ic"><use href="#i-spark"/></svg><span>LOAD DEMO BOOK</span></button>
+          </div>
+        </div>
+
+        <article class="panel glass tilt sheen reveal" style="margin-bottom:18px">
+          <header class="panel-head">
+            <h3><svg class="ic"><use href="#i-globe"/></svg> TRADE LEDGER</h3>
+            <span class="panel-tag mono">ZERODHA TRADEBOOK CSV</span>
+          </header>
+          <div class="mirror-strip">
+            <button class="btn btn-ghost" id="btnImportLedger"><svg class="ic"><use href="#i-refresh"/></svg> IMPORT CSV</button>
+            <input type="file" id="ledgerFileInput" accept=".csv,text/csv" hidden aria-hidden="true">
+            <span class="mirror-count" id="ledgerImportStatus"></span>
+          </div>
+          <p class="feed-meta mono" id="ledgerSummary"></p>
+        </article>
+
+        <div class="grid mirror-grid" style="margin-bottom:18px">
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-refresh"/></svg> EOD QUOTES</h3>
+              <span class="panel-tag mono">NSE BHAVCOPY CSV</span>
+            </header>
+            <div class="mirror-strip">
+              <button class="btn btn-ghost" id="btnImportBhavcopy"><svg class="ic"><use href="#i-refresh"/></svg> IMPORT BHAVCOPY</button>
+              <input type="file" id="bhavcopyFileInput" accept=".csv,text/csv" hidden aria-hidden="true">
+              <button class="btn btn-ghost" id="btnSyncLivePrices" title="Live per-symbol quotes via the local relay — needs node relay.js running"><svg class="ic"><use href="#i-refresh"/></svg> SYNC LIVE PRICES</button>
+            </div>
+            <p class="feed-meta mono" id="eodStatus">No EOD prices imported yet.</p>
+            <p class="feed-meta mono" id="livePriceStatus">Live sync: relay not detected — run <code>node relay.js</code> for real-time quotes.</p>
+          </article>
+
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-target"/></svg> COUNTERFACTUAL — VS NIFTY</h3>
+              <span class="panel-tag mono">2 OF 3 LANES</span>
+            </header>
+            <div class="field-row">
+              <div class="field"><label>Today's Nifty 50 level <input id="niftyLevelInput" type="number" min="0" step="any" placeholder="26414"></label></div>
+            </div>
+            <button class="btn btn-ghost" id="btnLogNifty" style="width:100%;margin-bottom:10px">LOG TODAY'S LEVEL</button>
+            <p class="feed-meta mono" id="counterfactualResult"></p>
+            <p class="crosscurrent-note">A third lane (paper ideas, if you'd have invested in every drafted thesis) needs idea-formation-date price tracking — deferred to Sprint 14's narrative-age work.</p>
+          </article>
+        </div>
+
+        <div class="grid pf-grid">
+          <article class="panel glass tilt sheen reveal pf-holdings">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-wallet"/></svg> HOLDINGS LEDGER</h3>
+              <span class="panel-tag mono" id="pfCount"></span>
+            </header>
+            <div class="table-wrap">
+              <table class="data-table" aria-label="Holdings">
+                <thead><tr><th>ASSET</th><th>CLASS</th><th class="num">QTY</th><th class="num">AVG BUY</th><th class="num">PRICE</th><th class="num">VALUE</th><th class="num">P&L</th><th></th></tr></thead>
+                <tbody id="holdingsBody"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="pfEmpty">
+              <div class="reactor sm dim" aria-hidden="true"><span class="ring r1"></span><span class="ring r2"></span><span class="core"></span></div>
+              <p>The ledger is empty, Sir. Add your first holding — or load a demo book to see me work.</p>
+            </div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head"><h3><svg class="ic"><use href="#i-target"/></svg> ALLOCATION</h3></header>
+            <div class="donut-wrap">
+              <canvas id="allocDonut" role="img" aria-label="Donut chart of portfolio allocation"></canvas>
+              <div class="donut-center" id="allocDonutCenter"></div>
+            </div>
+            <div class="legend" id="allocLegend"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head"><h3><svg class="ic"><use href="#i-up"/></svg> SIP PROJECTOR</h3></header>
+            <div class="sip-controls">
+              <label>Monthly SIP <output class="mono" id="sipAmtOut">₹10,000</output>
+                <input type="range" id="sipAmt" min="1000" max="200000" step="1000" value="10000"></label>
+              <label>Years <output class="mono" id="sipYrsOut">10</output>
+                <input type="range" id="sipYrs" min="1" max="30" step="1" value="10"></label>
+              <label>Expected CAGR <output class="mono" id="sipRateOut">12%</output>
+                <input type="range" id="sipRate" min="4" max="24" step="0.5" value="12"></label>
+            </div>
+            <div class="sip-result">
+              <div><p class="mono lbl">INVESTED</p><b class="mono" id="sipInvested">—</b></div>
+              <div><p class="mono lbl">PROJECTED VALUE</p><b class="mono gold" id="sipFuture">—</b></div>
+              <div><p class="mono lbl">WEALTH GAIN</p><b class="mono green" id="sipGain">—</b></div>
+            </div>
+            <canvas id="sipChart" role="img" aria-label="SIP growth projection chart"></canvas>
+          </article>
+
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head"><h3><svg class="ic"><use href="#i-shield"/></svg> CASH ENGINE</h3></header>
+            <div class="budget-form">
+              <label>Monthly income <input type="number" id="bIncome" min="0" placeholder="80000" inputmode="numeric"></label>
+              <label>Monthly expenses <input type="number" id="bExpense" min="0" placeholder="45000" inputmode="numeric"></label>
+            </div>
+            <div class="gauge-wrap">
+              <div class="gauge"><i id="savingsGauge"></i></div>
+              <p class="mono gauge-label" id="savingsLabel">Enter your cash flows, Sir.</p>
+            </div>
+            <div class="stack" id="pfInsights"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-target"/></svg> GOALS</h3>
+              <button class="link-btn mono" id="btnAddGoal">+ NEW GOAL</button>
+            </header>
+            <div class="stack" id="goalsList"></div>
+          </article>
+
+          <article class="panel glass tilt sheen reveal">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-bank"/></svg> TAX ESTIMATOR</h3>
+              <span class="panel-tag mono" id="taxAsOfTag"></span>
+            </header>
+            <div class="field-row">
+              <div class="field"><label>Asset class <select id="taxAssetClass"></select></label></div>
+              <div class="field"><label>Holding period (months) <input id="taxHoldingMonths" type="number" min="0" step="1" placeholder="14"></label></div>
+            </div>
+            <div class="field"><label>Realised gain ₹ <input id="taxGain" type="number" min="0" step="any" placeholder="50000"></label></div>
+            <button class="btn btn-ghost" id="btnComputeTax" style="width:100%;margin-top:4px">ESTIMATE TAX</button>
+            <p class="feed-meta mono" id="taxResult" style="margin-top:10px"></p>
+            <p class="crosscurrent-note" style="margin-top:8px">Illustrative only, not tax advice — verify against the current Finance Act or your CA before filing.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ==================== JARVIS CHAT DOCK ==================== -->
+  <aside class="chatdock glass" id="chatDock" aria-label="JARVIS assistant">
+    <header class="chat-head">
+      <div class="chat-id">
+        <span class="reactor sm" id="jarvisOrb" aria-hidden="true"><span class="ring r1"></span><span class="ring r2"></span><span class="core"></span></span>
+        <div>
+          <b class="display">J.A.R.V.I.S</b>
+          <p class="mono" id="jarvisStatus">ONLINE · ECONOMIC PROTOCOLS ACTIVE</p>
+        </div>
+      </div>
+      <div class="wave" id="jarvisWave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <button class="icon-btn" id="btnChatClear" aria-label="Clear chat history" title="Clear chat history" style="width:32px;height:32px"><svg class="ic" style="width:15px;height:15px"><use href="#i-trash"/></svg></button>
+      <button class="icon-btn" id="btnChatClose" aria-label="Collapse chat"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="chat-log" id="chatLog" aria-live="polite"></div>
+    <div class="chip-row chat-chips" id="quickChips"></div>
+    <form class="chat-form" id="chatForm">
+      <button type="button" class="icon-btn" id="btnMic" aria-label="Voice command" title="Voice command"><svg class="ic"><use href="#i-mic"/></svg></button>
+      <input id="chatInput" type="text" placeholder="Ask JARVIS… e.g. “brief me”" autocomplete="off" aria-label="Message JARVIS">
+      <button type="submit" class="icon-btn send" aria-label="Send"><svg class="ic"><use href="#i-send"/></svg></button>
+    </form>
+  </aside>
+
+  <button class="chat-fab glass" id="chatFab" aria-label="Open JARVIS chat" hidden>
+    <span class="reactor sm" aria-hidden="true"><span class="ring r1"></span><span class="ring r2"></span><span class="core"></span></span>
+  </button>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="tourBar" class="tour-bar glass" hidden>
+  <span class="mono">TOUR IN PROGRESS</span>
+  <button class="btn btn-ghost" id="btnStopTour">STOP TOUR</button>
+</div>
+<div id="modalRoot"></div>
+<div class="chart-tip mono" id="chartTip" hidden></div>
+<input type="file" id="importFileInput" accept="application/json" hidden aria-hidden="true">
+
+<script src="js/bus.js"></script>
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/schema.js"></script>
+<script src="js/persist.js"></script>
+<script src="js/tabguard.js"></script>
+<script src="js/alerts.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/store.js"></script>
+<script src="js/sonar.js"></script>
+<script src="js/honesty.js"></script>
+<script src="js/mirror.js"></script>
+<script src="js/ledger.js"></script>
+<script src="js/goals.js"></script>
+<script src="js/tax.js"></script>
+<script src="js/portfolio.js"></script>
+<script src="js/quotes.js"></script>
+<script src="js/counterfactual.js"></script>
+<script src="js/sunday.js"></script>
+<script src="js/provenance.js"></script>
+<script src="js/live.js"></script>
+<script src="js/brain.js"></script>
+<script src="js/scenario.js"></script>
+<script src="js/jarvis.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+================================================================================
+  J.A.R.V.I.S — UPGRADE ORDERS · PART IV (KNOWLEDGE & WISDOM LAYER)
+  Written by: Claude (Fable) · 2026-07-12
+  READ PARTS I–III FIRST. Parts I–III built machinery, integrity and trust.
+  Part IV is about what the machine KNOWS, how it REASONS, how the USER
+  improves, and how this project survives being built by many AI sessions.
+  New orders: 1600 series. Ground rules of Part I §0 + the Part III
+  hierarchy (Truth > Calm > Discipline > Delight) bind everything.
+================================================================================
+
+--------------------------------------------------------------------------------
+SECTION 1 — ORIENTATION: THE DEPTH THAT REMAINS
+--------------------------------------------------------------------------------
+Everything so far detects WHAT is happening (signals, patterns, flows).
+The remaining depth is WHY and SO-WHAT:
+  · Causal knowledge — event X tends to move sector Y, with a lag and a sign.
+  · Epistemic honesty — disagreement, ranges, and self-auditing.
+  · The user's own mind — calibration, ownership, and where his real
+    leverage lies (hint: at 21, it is not portfolio alpha).
+  · Governance — this app will be built by MANY AI sessions over months;
+    coherence across sessions is now the biggest engineering risk.
+Rule-based systems are only as smart as their encoded knowledge. Part IV is
+mostly KNOWLEDGE ENGINEERING — the hard, valuable, human part.
+
+--------------------------------------------------------------------------------
+SECTION 2 — ORD-1601 · THE CAUSAL ENGINE  [P1 · flagship of Part IV]
+--------------------------------------------------------------------------------
+WHAT: a hand-curated causal graph of the economy + a forward-chaining
+inference layer. When live signals activate a trigger, JARVIS walks the
+graph and shows the implication CHAIN — with sign, lag, mechanism, and
+confidence — instead of just clustering headlines.
+
+DATA MODEL (data.js): JDATA.CAUSAL = [{trigger, targets:[{to, sign(+|−|±),
+lagQ:[min,max], mech(one line), conf(L|M|H)}]}]. Triggers map to existing
+tags/keywords (Central Banks, Trade Policy, Capex, crude, monsoon...).
+
+INFERENCE RULES:
+  · A trigger is ACTIVE when ≥ 2 corroborated signals matched it in 72h.
+  · Max 2 hops. Chain confidence = min of edge confidences, downgraded one
+    level on the second hop. Show hops explicitly, never just the endpoint.
+  · Opposing active edges on the same target are BOTH shown, labelled
+    "CROSS-CURRENTS" — never silently netted (see ORD-1602).
+  · Every chain renders as: [TRIGGER] ──(lag 1-2q · mechanism)──▶ [TARGET ±]
+    A CSS/HTML chain component with the existing chip/glass language;
+    animated connector sweep gated by FX.enabled.
+
+SURFACES: "IMPLICATIONS" section on pattern cards; a CAUSAL CASCADE panel on
+Command Center when ≥ 1 trigger is active; Jarvis intents: "what does the
+rate cut mean", "trace crude", "implications for my book" (intersect chain
+targets with the user's holdings' sectors → per-holding ± chips, phrased as
+tendencies).
+
+SEED GRAPH (~28 edges; Sonnet transcribes as data, then the human extends):
+  rate cut        → banks ± (NIM squeeze 0-1q −ve; credit growth 1-2q +ve) M
+                  → autos/realty + (cheaper EMIs, 1-2q) H
+                  → INR − (carry unwind, 0-1q) M → IT/pharma + (export FX) M
+  rate hike       → inverse of the above M
+  crude ↑         → paints/aviation/tyres/OMCs − (input costs, 0-1q) H
+                  → CPI ↑ (0-1q) H → rate-cut odds − (0-1q) H
+  crude ↓         → inverse H
+  INR weakness    → IT/pharma exporters + (0-1q) H; importers/aviation − H
+  China stimulus  → metals + (0-2q) H; global risk-on + (0-1q) M
+  Taiwan/China+1  → India electronics/chemicals mfg + (2-8q, relocation) M
+  US Fed cut      → FII flows into EM + (0-1q) H → Indian largecaps + M
+  import tariff (e.g. steel safeguard)
+                  → domestic producers + (0-1q) H; user industries (autos,
+                    capex) − (margin squeeze, 0-2q) M
+  budget capex ↑  → infra/rail/defence ORDER BOOKS + (1-4q) H
+                  → execution REVENUE + (4-12q — the market often front-runs
+                    hop 1 and underprices hop 2) M
+  PLI scheme      → target-sector capacity/capex + (4-12q) H
+  good monsoon    → rural demand + → FMCG/tractors/2-wheelers + (1-2q) M
+  weak monsoon    → food CPI ↑ (0-1q) H → rate cuts delayed M
+  gold ↑ persistent → risk-off regime evidence (input to ORD-1610) M
+  defence export deal → sector re-rating + (0-1q) M
+  data-center buildout → power demand + → gencos/transmission/cables +
+                    (2-8q) H
+  EV price war    → OEM margins − (0-2q) H; component volume players ±
+                    (cost-plus insulated) M
+  credit growth ↑ → private capex confirmation → industrials + (1-4q) M
+  IPO flood       → secondary-market liquidity drain − (0-1q) L
+  FII sell + DII SIP buy → largecap range-bound; flows tug-of-war (regime
+                    evidence) M
+  critical-mineral export curbs → EV supply chain − (0-2q) M; domestic
+                    mining/recycling + (4-12q) L
+ACCEPTANCE: chains render with all 4 elements (sign, lag, mechanism,
+confidence); "implications for my book" answers within 1s; every chain's
+wording says "tends to", never "will".
+
+--------------------------------------------------------------------------------
+SECTION 3 — EPISTEMIC UPGRADES (1602–1605)
+--------------------------------------------------------------------------------
+ORD-1602  CONTRADICTION LEDGER. [P1, cheap, high trust]
+  When corroboration grouping finds signals on the same entity/sector with
+  OPPOSITE sentiment within 72h, do not average them into "neutral".
+  Create a Dissent record {topic, bullSignals[], bearSignals[]} and render a
+  small "CROSS-CURRENTS" list on the Patterns view: "Defence: 3 bullish
+  (orders) vs 2 bearish (valuation warnings)". Averaging disagreement into
+  mush is how dashboards lie; displayed dissent is how they earn trust.
+  Jarvis: "where is the disagreement?" lists them.
+
+ORD-1603  SOURCE DIVERSITY INDEX + SYNDICATION DETECTOR. [P2]
+  Corroboration is fake if all "5 sources" republish one wire story.
+  Detect syndication: body-shingle Jaccard ≥ 0.8 across different source
+  names → count as ONE effective source (keep names, mark "syndicated").
+  Coverage panel (ORD-904) adds a diversity line: effective sources /
+  nominal sources + a Herfindahl-style concentration note when one outlet
+  exceeds 50% of the day's signals ("your view of the world is mostly
+  one newsroom today, Sir").
+
+ORD-1604  CONSERVATION LAWS (production self-audit). [P1, small]
+  Invariants checked on every data:updated (throw → single toast + console
+  detail, never silent): dedupedTotal ≤ rawTotal; every Flow traces to a
+  Group; every Idea's conviction equals its components' weighted sum ±0.5;
+  rollup dates unique; no Signal has senti outside {bull,bear,neut};
+  FIFO book value equals Σ lots to 1e-6. Surface a tiny "SELF-AUDIT OK"
+  line in the settings diagnostics block with last-checked time. The
+  dashboard that audits itself is the one future-you believes.
+
+ORD-1605  SCENARIO BANDS EVERYWHERE. [P1, small]
+  Single-point projections are the most common personal-finance lie.
+  Every projection surface (SIP projector, goals, step-up, FIRE) renders
+  THREE lines/values: conservative 8% · base 12% · optimistic 15% (rates
+  configurable in settings). The chart shows a shaded band, the headline
+  shows the base with the range in smaller mono ("₹75.7 L · range 58–94").
+  Jarvis quotes ranges by default. Goal on-track logic uses the
+  CONSERVATIVE band (under-promise by design).
+
+--------------------------------------------------------------------------------
+SECTION 4 — THE USER IS PART OF THE SYSTEM (1606–1609)
+--------------------------------------------------------------------------------
+ORD-1606  PREDICTION BOOK + CALIBRATION COACH. [P1 · the deepest personal
+  feature in this program]
+  Record explicit predictions: {statement, direction, subject(sector/
+  symbol/macro), horizonDate, confidence 50-95%, createdAt, resolvedAt?,
+  outcome? (hit|miss|push), resolveHint?(numeric level when applicable)}.
+  Entry via Jarvis ("predict: defence outperforms nifty by year end, 70%")
+  or a small form in Ideas Lab. Resolution: manual prompt when horizonDate
+  arrives (+ auto-suggest via proxy quotes when numeric).
+  CALIBRATION VIEW (in Ideas Lab or report card): bucket predictions by
+  stated confidence (50-60, 60-70...), plot stated vs actual hit-rate —
+  the classic calibration curve — plus Brier score = mean((conf −
+  outcome)²). JARVIS's quarterly line writes itself: "Your 80%-confidence
+  calls land 55% of the time — you are overconfident by 25 points. Your
+  60% calls are well calibrated. Adjust position sizes accordingly."
+  Nothing in this entire program will make the user more money than
+  learning his own calibration. Pure arithmetic. Needs ≥ 10 resolved
+  predictions before the curve renders (show progress until then).
+
+ORD-1607  OWNERSHIP GATE (amends ORD-1102 checklist). [P1, tiny]
+  Add a mandatory checklist field: "Thesis restated in YOUR OWN words"
+  (textarea, ≥ 2 sentences, cannot paste-match the generated thesis —
+  reject ≥ 60% shingle overlap with the machine text). The tool must never
+  let the user outsource conviction to it; if he cannot write why he owns
+  something, he does not own it — the position owns him. This is the
+  single most important guardrail in the app.
+
+ORD-1608  ALPHA AUDIT — where the user's leverage actually is. [P1]
+  Compute annually-denominated impact from HIS real data:
+    a) +1pp portfolio return on current book value
+    b) +10% income (career growth) at current savings behavior
+    c) −5% expenses redirected to SIP
+    d) +5pp savings rate
+  Render ranked bars (My Money panel) + one Jarvis verdict. For a student
+  book (~₹9L) vs a ₹90k/mo income, career growth beats return-chasing by
+  an order of magnitude — SAY SO: "Your career compounds ~12× harder than
+  your portfolio right now, Sir. The terminal is for the surplus; the
+  library is for the alpha." Include the crossover estimate: the year the
+  book (at conservative growth) starts to out-earn a 10% raise. Reframes
+  "make me money faster" toward the truth without lecturing.
+
+ORD-1609  RE-ENTRY BRIEF. [P2]
+  If lastOpen > 21 days ago, suppress the daily brief and render a
+  compressed WELCOME-BACK brief instead: days away · what compounded
+  quietly (SIP months banked, book delta) · which threads resolved or died
+  · current regime vs when he left · ONE suggested action (usually: log
+  anything that happened offline). Never a backlog dump, never guilt.
+  Returning users are lost at re-entry; design for the comeback.
+
+--------------------------------------------------------------------------------
+SECTION 5 — ORD-1610 · REGIME AWARENESS [P2]
+--------------------------------------------------------------------------------
+A crude-but-honest regime classifier from data already on hand:
+  Inputs: bias% trend (7d), FII flow direction (if live), gold signal
+  frequency, threat-board size, index trend (if quotes live).
+  Output: one of RISK-ON / RISK-OFF / ROTATION / NO-READ (default when
+  inputs conflict — NO-READ is a first-class answer, not a failure).
+Topbar chip next to MARKET status + one line in the brief ("Regime: risk-on,
+11th day"). Playbook emphasis shifts wording only (risk-off → briefs lead
+with threat board and cash notes; risk-on → leads with patterns). Label the
+whole thing honestly in its tooltip: "heuristic, 4 inputs, no magic."
+Static seasonality notes join JDATA.EVENTS (budget season, results seasons,
+monsoon window) as context lines, not signals.
+
+--------------------------------------------------------------------------------
+SECTION 6 — LIFE INTEROP (1611–1612)
+--------------------------------------------------------------------------------
+ORD-1611  ICS CALENDAR EXPORT. [P2, small, zero-API]
+  Client-generated .ics download: SIP due dates (ORD-407), Sunday review
+  (weekly RRULE), macro events (ORD-305), goal milestone dates, backup
+  reminder (monthly). One "ADD TO CALENDAR" button in settings; the user's
+  phone calendar becomes JARVIS's reminder arm without any server.
+
+ORD-1612  THE WEEKLY LEDGER (plain-text state of the world). [P2]
+  One click (or "export ledger") produces a human-readable markdown doc:
+  date · regime · top patterns with deltas · deduped flows · anomalies ·
+  cross-currents · thesis board snapshot · book summary (opt-in numbers) ·
+  predictions pending. Designed for a HUMAN in a text editor in 2031 —
+  greppable, diffable, survives the app's death. If JARVIS ever dies, the
+  knowledge lives. (Distinct from ORD-110 backup, which is for machines.)
+
+--------------------------------------------------------------------------------
+SECTION 7 — GOVERNANCE ACROSS MANY AI SESSIONS (1613–1615)
+The real engineering risk from here: DRIFT. Dozens of future model sessions,
+each locally sensible, collectively incoherent. Constitution + decision log
++ pruning are the immune system.
+--------------------------------------------------------------------------------
+ORD-1613  THE CONSTITUTION. [P0 for process — create immediately]
+  Create jarvis/CONSTITUTION.md containing exactly these articles (copy
+  verbatim, then keep it under 60 lines forever):
+    Art. 1  Truth > Calm > Discipline > Delight. Ties break upward.
+    Art. 2  No buy buttons. The app records decisions; it never executes,
+            urges, or counts down.
+    Art. 3  Silence is a valid output. Nothing auto-refreshes; no urgency
+            theater; at most one unsolicited nudge per session.
+    Art. 4  Every number must answer "says who, as of when" (source +
+            staleness stamps).
+    Art. 5  Disagreement is displayed, never averaged away.
+    Art. 6  Every conclusion must be explainable as a one-line chain a
+            human can read (no opaque scores without breakdowns).
+    Art. 7  Data never leaves this machine except whitelisted public GETs.
+            No accounts, no telemetry, no cloud.
+    Art. 8  The sidebar holds six views, forever. New features nest inside.
+    Art. 9  Projections show ranges, never single points.
+    Art.10  Delete before add: any feature unused for 60 days is a removal
+            candidate (ORD-1615).
+    Art.11  The user's own words gate every commitment (ORD-1607).
+    Art.12  Only the human amends this constitution. Models may propose.
+  EVERY future session preamble (give the user this snippet to paste):
+    "Read jarvis/CONSTITUTION.md and jarvis/ARCHITECTURE.md first. Implement
+     ORD-<n> from the UPGRADE-ORDERS files. Minimal diffs; follow the Part
+     III data contracts; run test.html and the Part I §11 smoke test; append
+     to DECISIONS.md; do not violate the constitution."
+
+ORD-1614  DECISIONS.md (ADR-lite). [P1, tiny]
+  Append-only log; one entry per meaningful choice: date · session · what ·
+  why · alternatives rejected. Ten lines max each. Future sessions read it
+  before re-litigating old choices. Seed it retroactively with: no-build
+  vanilla stack; validated 6-color data palette; keyword-net + archive
+  design; localStorage/IDB split; no-AI constraint; relay whitelist.
+
+ORD-1615  LOCAL USAGE COUNTERS + PRUNING PROTOCOL. [P2]
+  Count view visits, panel expands, intent uses (jarvis.usage.v1 — local
+  only, never exported by default). Quarterly, settings shows a "dust
+  report": features untouched in 60+ days with a REMOVE suggestion. The
+  roadmap includes a chainsaw; a personal tool stays alive by staying small.
+  (Counters themselves respect Art. 7 — they never leave the machine.)
+
+--------------------------------------------------------------------------------
+SECTION 8 — THE MINIMUM LOVABLE JARVIS (collapse plans for finite time)
+--------------------------------------------------------------------------------
+Parts I–IV total ~20 sprints. A 6th-semester human may complete 6. Decide
+NOW what matters so partial execution still yields a coherent tool.
+
+IF ONLY ONE SPRINT EVER HAPPENS:
+  ORD-110 (backup) + 1508a (.gitignore) + 101/104/105 (polish) +
+  ORD-1401 (presentation mode). Result: safe, stable, demos brilliantly.
+
+IF SIX SPRINTS (the pragmatic target):
+  1) Sprint 1 above
+  2) ORD-201/202 + 1509 (hardened relay + real wires)
+  3) ORD-203 + 905 (archive + time correctness) → deltas in the brief
+  4) ORD-301/901/903 (corroboration + dedup + calibration — the truth layer)
+  5) ORD-401/402/1502 (transactions + XIRR + corporate actions)
+  6) ORD-1001 (anomaly sonar) + ORD-1402 (docs pack for the viva)
+  Result: honest live intelligence + a real ledger + one wow feature +
+  evaluation-ready. Everything else remains optional forever.
+
+FULL PROGRAM: Part II §J sequence with Part III §10 and these insertions:
+  1601 (causal engine) after Sprint 9; 1602/1604/1605 with Sprint 5-6;
+  1606/1607/1608 with Sprints 11-12; 1610/1609 with Sprint 16;
+  1611/1612/1615 with Sprint 17; 1613/1614 IMMEDIATELY (they are process,
+  not features — one session, tiny).
+
+--------------------------------------------------------------------------------
+SECTION 9 — ACADEMIC FRAMING (this is still a 6th-sem project; win the viva)
+--------------------------------------------------------------------------------
+Position JARVIS academically as a KNOWLEDGE-BASED EXPERT SYSTEM — textbook
+AI, no LLM required, and the absence of an LLM becomes a FEATURE:
+  · Knowledge base: JDATA dictionaries, playbooks, value chains, CAUSAL
+    graph (ORD-1601).
+  · Inference engine: forward chaining over causal rules with confidence
+    propagation and lag reasoning.
+  · Explanation facility: every conclusion shows its chain (Art. 6) — the
+    classic expert-system property modern LLMs LACK. Lead with this.
+  · Knowledge acquisition: human-gated dictionary evolution (ORD-1513).
+  · Plus: statistical anomaly detection (z-scores = classic IR/statistics),
+    TF-style term analytics, calibration scoring (Brier) = decision theory.
+CS concepts to name-drop honestly in the report: information retrieval
+(shingling, Jaccard, dedup), expert systems (rules + explanation), HCI
+(a11y, reduced-motion, progressive disclosure), local-first architecture
+(IndexedDB, PWA, offline), speech interfaces (Web Speech), security (CSP,
+threat model, whitelisted proxy), software engineering (golden-file tests,
+invariants, ADRs, constitution-driven multi-agent development — that last
+one is genuinely novel material for a report).
+VIVA Q&A PREP (put in the docs pack, ORD-1402):
+  "Where is the ML?" → rule-based + statistical by DESIGN for explainability
+    and privacy; show the anomaly z-score and calibration math.
+  "Where is the database?" → IndexedDB + versioned localStorage; local-first
+    is an architectural position (privacy, zero-cost, offline), not a gap.
+  "Why no framework?" → zero dependencies to rot, sub-second loads, and the
+    5-year-survival goal; show the event bus as evidence of structure.
+  "What is novel?" → explainable causal chains over live news + calibration
+    coaching + constitution-governed multi-session AI development.
+  "Scalability?" → single-user by explicit design; discuss what WOULD change
+    (relay → shared service, IDB → server DB) to show you know.
+
+--------------------------------------------------------------------------------
+SECTION 10 — SEED CONTENT: THE QUALITY BAR (write the rest to match)
+--------------------------------------------------------------------------------
+PLAYBOOK TEMPLATE — "BANKING & FINANCE" (full example for ORD-1005):
+  HOW IT EARNS: borrows short (deposits), lends long (loans); profit lives
+    in the spread (NIM) net of defaults (credit costs).
+  METRICS THAT MATTER: NIM (3%+ strong for universal banks) · CASA ratio
+    (cheap deposits = durable moat) · GNPA/NNPA trend (direction beats
+    level) · credit growth vs deposit growth gap · provision coverage ·
+    price-to-book vs 5y band (banks are valued on book, not earnings).
+  WHAT MOVES IT UP: rate-cut cycles (volume), benign NPA cycle, capex
+    upturns (corporate loan demand), deposit-cost easing.
+  WHAT HURTS: NIM compression early in cut cycles, deposit wars, unseasoned
+    retail-credit booms, regulatory action on unsecured lending.
+  CLASSIC BUYER MISTAKES: buying the cheapest P/B without asking why ·
+    ignoring deposit franchise quality · extrapolating credit booms ·
+    treating NBFCs and banks as the same animal (funding fragility differs).
+DEFENCE VALUE-CHAIN SEED (for ORD-1501, tier structure example):
+  T1 PRIMES: HAL (aircraft), BEL (electronics), Mazagon (ships), BDL
+     (missiles) — repriced within minutes of an order headline.
+  T2 SYSTEMS: Bharat Forge (forgings/artillery), Data Patterns & Astra
+     Microwave (radar/RF), MTAR (precision components), Paras Defence
+     (optics), Dynamatic (aerostructures) — repriced in days-weeks.
+  T3 INPUTS/SERVICES: Mishra Dhatu (special alloys), Solar Industries
+     (explosives/propellants), testing & MRO houses — repriced last, if at
+     all. NOTE on every chain: "reprice lags are tendencies, not laws;
+     names are study lists, not recommendations."
+Write the remaining 11 playbooks and 11 chains at THIS density — one screen
+each, no filler. This content is the app's actual brain; budget a full
+session for it and have the human review every line.
+
+--------------------------------------------------------------------------------
+SECTION 11 — THE STOPPING RULE (when the correct order is: stop building)
+--------------------------------------------------------------------------------
+This program does not end when the backlog is empty — backlogs never empty.
+It ends when ALL of the following hold:
+  1. The morning protocol takes < 60 seconds and you trust every number on
+     the screen (Part III §K).
+  2. The last two features you added did not change any decision you made.
+  3. Maintenance is one hour a year (ORD-1512) and nothing feels broken.
+  4. The archive is aging and the calibration curve has data.
+At that point the highest-return move available is not ORD-anything. It is:
+live your life, log your decisions, resolve your predictions, and let the
+archive and the calibration curve age like wine. The tool's final purpose
+was never to be built — it was to make its owner a calmer, better-calibrated
+investor. When that's true, JARVIS is finished, even if the backlog isn't.
+================================================================================
+END OF PART IV — Fable
+================================================================================

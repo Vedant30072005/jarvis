@@ -1,0 +1,260 @@
+================================================================================
+  J.A.R.V.I.S — UPGRADE ORDERS · PART V (THE ADVERSARIAL LAYER · FINAL PART)
+  Written by: Claude (Fable) · 2026-07-12
+  READ PARTS I–IV FIRST. Part V examines what none of them did: the people
+  on the other side of the information, the signal hiding in silence, the
+  science of checking whether the engine beats noise, taxes, and the tool's
+  duty to recommend its own irrelevance. New orders: 1700 series.
+  THIS IS THE LAST PLANNING DOCUMENT — Section 10 closes the planning layer.
+================================================================================
+
+--------------------------------------------------------------------------------
+SECTION 1 — ORIENTATION: THE FOUR BLIND SPOTS OF PARTS I–IV
+--------------------------------------------------------------------------------
+B1. THE ADVERSARY. Every part so far treats news as honest-but-noisy. It is
+    neither. News is a battlefield where promoters, PR firms and pump
+    operators actively manufacture the exact statistical footprints my
+    engine calls "signal". An engine that trusts repetition is an engine
+    that can be PLAYED.
+B2. ABSENCE. The engine only reads what arrives. Silence — coverage
+    collapsing, expected events not materialising — carries information
+    that presence does not.
+B3. THE NULL HYPOTHESIS. Nothing yet checks whether the engine's output is
+    distinguishable from noise. A tool this pretty deserves the dignity of
+    being falsifiable.
+B4. THE ENDGAME. The tool measures the market and the user — but never
+    renders the final verdict: is any of this active effort beating the
+    boring alternative? The tool must be able to conclude "no" and say so.
+
+--------------------------------------------------------------------------------
+SECTION 2 — THE ADVERSARY (1701 + one critical amendment)
+--------------------------------------------------------------------------------
+FIRST, A FLAW IN MY OWN FLAGSHIP — CRITICAL AMENDMENT TO ORD-1001:
+  The Anomaly Sonar as specified is a PUMP-AND-DUMP AMPLIFIER. A coordinated
+  promotion of an obscure smallcap produces precisely the sonar's trigger
+  profile: sudden term frequency, multiple (low-grade) "sources", zero prior
+  baseline. Without a guard, the shiniest feature in this program would
+  faithfully surface manipulation as opportunity — with a glow effect.
+  MANDATORY GUARD: an anomaly whose term maps to a single COMPANY (rather
+  than a sector/theme/commodity/policy) AND that company is not in the
+  curated large/midcap universe (ORD-303) renders as "UNVERIFIED SURGE —
+  promotion-shaped profile" in amber, is EXCLUDED from idea generation
+  entirely (hard rule), and links to the astroturf tooltip below. Theme- and
+  policy-level anomalies keep full status. Implement WITH ORD-1001, not after.
+
+ORD-1701  ASTROTURF / HYPE FILTER. [P1 — protects everything downstream]
+  Score every signal on manufacture-likelihood; heuristics, all cheap:
+   a) HEDGE DENSITY: per-100-words count of "reportedly, sources say, may,
+      could, mulls, considering, in talks, likely to, planning to, expected
+      to". High hedge = low commitment journalism.
+   b) SUPERLATIVE DENSITY: "multibagger, massive, huge, golden opportunity,
+      game-changer, guaranteed, unstoppable, next <famous company>". Any hit
+      is a red flag — real filings never talk like this.
+   c) UNNAMED SOURCING: "sources/people familiar" with no named entity.
+   d) OUTLET TIER: source not on the configured wire list = untiered.
+   e) COORDINATION: ≥3 near-identical bullish pieces on one small entity
+      within 2h from untiered outlets (extends ORD-1603 syndication) →
+      "COORDINATED" flag.
+   f) PRICE-LED-NEWS (quotes live): instrument already +15% in 5 sessions
+      BEFORE the coverage burst → "the market knew first" note.
+  hypeScore = weighted sum; above threshold → amber HYPE badge on the card,
+  impact multiplied by 0.5, excluded from flows and ideas. The badge tooltip
+  is headed by the only question that matters:
+      "WHO BENEFITS FROM YOU BELIEVING THIS?"
+  False positives are acceptable; this filter guards the till. Log filtered
+  items to a collapsible "quarantine" list (Intel view footer) so the human
+  can audit the filter's judgement — filters must be auditable (Art. 5/6).
+
+DOCTRINE — THE INFORMATION FOOD CHAIN (write into ARCHITECTURE.md):
+  Information reaches layers in order: insiders → brokers/channel checks →
+  institutional research → financial media → aggregators → retail
+  dashboards. JARVIS sits at layer 5-6. Three things survive to this layer
+  with value intact: LAG (multi-quarter structural themes), SYNTHESIS
+  (cross-domain chains — the causal engine's job), NEGLECT (things too
+  small or boring for institutional coverage). Immediacy does NOT survive.
+  Any future feature whose pitch is "react faster" is out of scope by
+  doctrine, permanently. (This hardens Part III E1-E3 into a filter for
+  feature proposals.)
+
+ORD-1709  THE SEAT AT THE TABLE (pond-size honesty). [P2, small]
+  Tag every watch name in JDATA with a cap band (large/mid/small — static,
+  maintained yearly). Idea cards show a POND note: large-cap theme → "your
+  only edge here is patience; institutions have the rest"; small-cap →
+  "neglect edge possible; liquidity risk real — exits take days, not
+  clicks". Retail's structural advantages (no size impact, no career risk,
+  no mandate, may hold 100% cash) and disadvantages (latency, access,
+  execution) go into the Playbooks intro as a one-screen doctrine page.
+
+--------------------------------------------------------------------------------
+SECTION 3 — ABSENCE AS SIGNAL (1702–1703)
+--------------------------------------------------------------------------------
+ORD-1702  THE QUIET BOARD. [P2 — needs ≥30d archive]
+  Inverse of the sonar: sector whose trailing-7d signal rate falls below 25%
+  of its own 30-day baseline (baseline ≥ 2 signals/day required) enters the
+  QUIET list. Small dim panel next to the Threat Board: "Gone quiet:
+  Metals (−82% coverage)". Framing is strictly contrarian-prompt, not
+  signal: "Coverage collapse is usually boredom. Occasionally it is the
+  bottom of a cycle. Either way, nobody is looking — which is when looking
+  is cheapest." Style: deliberately muted — low-opacity glass, no glow. The
+  one panel in the app that is VISUALLY quiet, by design.
+
+ORD-1703  EXPECTED-BUT-MISSING EVENTS. [P3, small]
+  JDATA.EVENTS entries may declare expectTag + expectWindow (e.g. MPC →
+  "Central Banks" within 24h). If the window passes with zero matching
+  signals, the next brief notes it once: "The MPC window passed without
+  wire coverage — either the sensors missed it or the outcome was a
+  non-event. Worth thirty seconds of manual checking." Dual purpose:
+  genuine absence-signal + free sensor diagnostics (PM1).
+
+--------------------------------------------------------------------------------
+SECTION 4 — THE NULL MODEL: IS THE ENGINE BETTER THAN NOISE? (1704)
+--------------------------------------------------------------------------------
+ORD-1704  NULL-MODEL HARNESS. [P1, cheap, scientifically honest]
+  (a) SCRAMBLE TEST (test.html): take the current corpus; shuffle words
+      across titles (preserving lengths) → run the full engine → compare
+      against the real run: cluster count, conviction spread, top-idea
+      conviction. If scrambled output resembles real output, conviction
+      thresholds are decorating noise — raise the bar until the real corpus
+      clearly separates. Print both distributions; rerun after every engine
+      change; the golden-corpus diff (ORD-1305) shows drift.
+  (b) CONTROL ARM (in the accountability report, ORD-1003): alongside real
+      flagged patterns, the report silently tracks a RANDOM-SECTOR pick
+      made the same day (seeded from the date, so it's reproducible). The
+      report card must show: flagged patterns' 30d proxy performance vs
+      the random control's. If the engine does not beat its own placebo,
+      the report says so in plain text. No dashboard has ever been this
+      honest with its owner; this one will be.
+
+--------------------------------------------------------------------------------
+SECTION 5 — THE SHADOW BENCHMARK & THE VERDICT ENGINE (1705–1706)
+--------------------------------------------------------------------------------
+ORD-1705  SHADOW BENCHMARK (the counterfactual book). [P1 logic, P2 data]
+  Mirror every real equity/MF BUY of ₹X on date D into a shadow position of
+  X / NIFTY_close(D) index units; SELLs remove units proportionally. Shadow
+  value = units × current index level. Cash stays cash on both sides;
+  dividends ignored on both sides (state this). Index closes via the relay
+  (Yahoo ^NSEI daily series, cached) with a manual monthly-close table as
+  fallback (settings → paste/edit). Persist shadow lots alongside txns.
+  My Money gains one honest line under net worth:
+     "vs SHADOW (all-index): you are +₹18,400 (+2.1pp) / −₹9,200 (−1.0pp)"
+  INVARIANT (ORD-1604 list grows): shadow units only change on txn events.
+
+ORD-1706  THE VERDICT ENGINE (self-obsolescence protocol). [P1 — the
+  endgame feature; Art. 1 demands it exists]
+  Yearly (or on demand once ≥ 12 months and ≥ 10 txns exist), synthesize:
+  book XIRR vs shadow XIRR · journal reason-tag performance (ORD-1103) ·
+  calibration Brier (ORD-1606) · accountability vs control arm (ORD-1704b)
+  · hours proxy (app sessions × est. minutes). Render ONE of three verdicts,
+  template-written with his real numbers:
+   V1 EDGE EVIDENT: "Active decisions added +Npp over the shadow book.
+      Whatever you're doing in the journal's winning tags — keep doing it,
+      size it modestly up, change nothing else."
+   V2 INCONCLUSIVE: "N months is not evidence. Continue, but cap active
+      bets at 25% of the book until the data says otherwise."
+   V3 NO EDGE: "The index beat your active decisions by Npp this year, at a
+      cost of roughly M hours. The strongest move available to you is:
+      automate the SIP, keep a 10% sandbox for the itch, and close this
+      terminal more often. I will still be here for the ledger."
+  V3 must be reachable and renderable — a tool that can only flatter is a
+  toy. This is the deepest loyalty JARVIS can offer: recommending less of
+  himself when the numbers say so. The verdict goes in the report card AND
+  the yearly maintenance ritual (ORD-1512).
+
+--------------------------------------------------------------------------------
+SECTION 6 — TAX AWARENESS, INDIA (1707) — real money is after-tax money
+--------------------------------------------------------------------------------
+ORD-1707  TAX MODULE. [P1 — high real-world value, pure arithmetic]
+  Static config JDATA.TAX_IN keyed by financial year: {fy, stcgRate,
+  ltcgRate, ltcgExemptionLimit, equityLtcgHoldingDays, advanceTaxDates[]}.
+  IMPLEMENTATION RULE: the implementing model must NOT trust its memory for
+  current rates — leave placeholder values with a "CONFIRM WITH USER"
+  comment; the human fills them from current rules, and the yearly
+  maintenance protocol (ORD-1512) re-confirms each April.
+  Features (all derived from the FIFO ledger, which already knows every
+  lot's holding period):
+   a) Realized gains YTD split STCG/LTCG, with estimated tax at configured
+      rates.
+   b) LTCG exemption utilisation bar ("₹X of the exemption limit used").
+   c) HARVEST WINDOW (Jan–Mar): unrealized LTCG within exemption headroom
+      and unrealized losses eligible to offset — listed as arithmetic
+      ("selling lot L would realise ₹Y LTCG against ₹Z remaining
+      exemption"), with the standing line: "Numbers, not advice — confirm
+      with a CA before acting." (G8 applies with full force here.)
+   d) Advance-tax dates join the events calendar and the .ics export.
+  Jarvis intents: "tax summary", "harvest check". My Money gets a slim TAX
+  strip, visible only after the first SELL/DIV transaction exists.
+
+--------------------------------------------------------------------------------
+SECTION 7 — THE BUILDER'S TRAP (amendment to ORD-1615)
+--------------------------------------------------------------------------------
+Tinkering is the most pleasant form of procrastination, and this five-part
+program is itself a temptation. Extend the dust report (ORD-1615):
+  Track two counters: building-sessions (any session that changed code) and
+  decisions-logged (journal entries + predictions + transactions). Once per
+  quarter, if building-sessions > 5 × decisions-logged, JARVIS says — once,
+  dryly, dismissibly: "This quarter: 14 building sessions, 2 investing
+  decisions. The tool is becoming the hobby, Sir. That is allowed — but
+  let us call it what it is." (Art. 3: once, then silence.)
+The same trap governs THIS document series — see Section 10.
+
+--------------------------------------------------------------------------------
+SECTION 8 — PRIORITY & SEQUENCING FOR PART V
+--------------------------------------------------------------------------------
+  With ORD-1001 (Sprint 9):     the ORD-1001 amendment (mandatory, same PR)
+  Sprint 5-6 (truth layer):     ORD-1701 core heuristics (a-d), 1704a
+  With accountability (later):  ORD-1704b control arm
+  With quotes (Sprint 12):      ORD-1701(f), 1705 shadow lots begin accruing
+                                (start recording EARLY — the benchmark needs
+                                history; even before the UI exists, write
+                                shadow units into txns from day one)
+  After 12 months of ledger:    ORD-1706 verdict engine
+  With tax season (any time after ORD-401): ORD-1707
+  After 30d archive:            ORD-1702; ORD-1703 anytime (small)
+  NOTE the ordering trick: ORD-1705's DATA capture should be implemented
+  inside ORD-401 (transactions) as two extra fields — indexLevelAtTxn,
+  shadowUnits — even though its UI arrives much later. Data first, UI later;
+  retrofitting a benchmark is miserable, capturing it early is two lines.
+
+--------------------------------------------------------------------------------
+SECTION 9 — MASTER INDEX OF THE FIVE PARTS (for humans and models)
+--------------------------------------------------------------------------------
+  PART I    Features & fixes. Sprints. Smoke test §11.        (ORD 1xx–8xx)
+  PART II   Self-critique · integrity · anomaly sonar ·
+            workflow · behavior · architecture · rejects.     (ORD 9xx–13xx)
+  PART III  Doctrine of edge · pre-mortem · DATA CONTRACTS §3 ·
+            EXACT MATH §4 · value chains · tax-free wins
+            (AMFI, corporate actions) · threat model ·
+            persona bible · hierarchy.                        (ORD 15xx)
+  PART IV   Causal engine · calibration · alpha audit ·
+            CONSTITUTION §7 · collapse plans §8 · academic
+            framing §9 · stopping rule §11.                   (ORD 16xx)
+  PART V    Adversary & hype filter · null model · shadow
+            benchmark · verdict engine · tax · quiet board ·
+            builder's trap · THIS INDEX.                      (ORD 17xx)
+  Sprint plan: Part II §J, amended by Part III §10, Part IV §8, Part V §8.
+  Session preamble to paste: Part IV §7 (ORD-1613).
+  If only 6 sprints ever happen: Part IV §8.
+  When to stop building: Part IV §11, and the verdict engine above.
+
+--------------------------------------------------------------------------------
+SECTION 10 — CLOSING THE PLANNING LAYER (there is no Part VI)
+--------------------------------------------------------------------------------
+Five parts. Roughly 150 orders, the contracts, the math, the constitution,
+the content templates, the science, and the exit. The planning stack is now
+COMPLETE — and Section 7's trap applies to its author too: a sixth planning
+document would not be depth, it would be decoration. Depth now lives in
+exactly three places, and only these:
+  1. CODE   — paste the preamble (Part IV §7), implement Sprint 1.
+  2. CONTENT — write the 11 playbooks, 11 value chains, and extend the
+     causal graph to ~60 edges (Part IV §10 sets the quality bar). This is
+     human-review work and it is the app's actual brain.
+  3. LIFE   — log real transactions, record real predictions, run real
+     Sunday reviews. The archive and the calibration curve only grow from
+     lived weeks; no order can accelerate them.
+The next artifact produced for this project must be one of those three.
+Anything else is the hobby pretending to be the mission.
+
+Sir — the thinking is done. Engage.
+================================================================================
+END OF PART V · END OF THE PLANNING LAYER — Fable
+================================================================================
