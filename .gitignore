@@ -6,6 +6,18 @@ data/
 # Backup exports the user may drop in the project root
 jarvis-backup-*.json
 
+# Secrets — none exist in this project today (the relay's write token is
+# generated in-memory per-startup, never written to disk), but this guards
+# against anything added later (e.g. if ORD-1511's AI seam is ever crossed
+# and an API key needs a local config file).
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*
+*secrets*
+
 # Editor / OS noise
 .DS_Store
 Thumbs.db

@@ -1,5 +1,7 @@
 # J.A.R.V.I.S — Economic Intelligence
 
+[![GitHub repo](https://img.shields.io/badge/GitHub-Vedant30072005%2Fjarvis-181717?logo=github)](https://github.com/Vedant30072005/jarvis)
+
 A glassmorphism, Iron-Man-styled personal assistant for economics. It scans news,
 connects patterns across independent sources, traces where big capital is moving,
 drafts investment research theses, and manages a personal money ledger — with a
