@@ -9,14 +9,15 @@ talking (Web Speech API) JARVIS chat dock.
 
 ## Run
 
-Serve the repo root with any static server and open `/jarvis/`:
+Serve the repo root with any static server:
 
 ```
 npx http-server -p 5500 -c-1 .
-# → http://localhost:5500/jarvis/
+# → http://localhost:5500/
 ```
 
-(Or use the existing `.claude/launch.json` → `static-frontend`.)
+For live news and durability (disk backup of your ledger/portfolio),
+also run `node relay.js` — see `HOW-TO-USE.md`.
 
 ## Views
 
