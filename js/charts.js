@@ -40,7 +40,11 @@ const Charts = {
     const draw = () => {
       const { ctx, w, h } = this.size(canvas);
       ctx.clearRect(0, 0, w, h);
-      const cx = w/2, cy = h/2, R = Math.min(w,h)/2 - 8, ir = R * .62;
+      // size() floors the canvas at 10x10 even when its container is
+      // mid-layout (0 width during a view transition, before CSS
+      // settles) — R must stay clamped too, or a tiny canvas drives it
+      // negative and ctx.arc() throws IndexSizeError.
+      const cx = w/2, cy = h/2, R = Math.max(4, Math.min(w,h)/2 - 8), ir = R * .62;
       let a0 = -Math.PI/2;
       segments.forEach((s, i) => {
         const frac = (s.value/total) * state.t;
@@ -71,7 +75,7 @@ const Charts = {
     canvas.onmousemove = (e) => {
       const r = canvas.getBoundingClientRect();
       const x = e.clientX - r.left - r.width/2, y = e.clientY - r.top - r.height/2;
-      const R = Math.min(r.width, r.height)/2 - 8;
+      const R = Math.max(4, Math.min(r.width, r.height)/2 - 8);
       const d = Math.hypot(x, y);
       let hover = -1;
       if (d < R + 6 && d > R * .55){
@@ -116,7 +120,9 @@ const Charts = {
     const draw = () => {
       const { ctx, w, h } = this.size(canvas);
       ctx.clearRect(0, 0, w, h);
-      const cx = w/2, cy = h/2, R = Math.min(w,h)/2 - 14;
+      // same negative-radius guard as donut() — a tiny mid-layout canvas
+      // (size() floors at 10x10) must not drive R below zero into ctx.arc().
+      const cx = w/2, cy = h/2, R = Math.max(4, Math.min(w,h)/2 - 14);
 
       // rings + cross
       ctx.strokeStyle = 'rgba(56,225,255,.14)'; ctx.lineWidth = 1;

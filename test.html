@@ -1942,6 +1942,41 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
     failures.length === 0, failures.join(' | '));
 })();
 
+/* ================= Charts: negative-radius crash (found via live Chrome testing) ================= */
+/* donut() and radar() computed R from the canvas's live bounding rect
+   with no floor — size() clamps the canvas itself to a 10x10 minimum
+   (e.g. mid-layout during a view transition, container still 0-width),
+   but R = Math.min(w,h)/2 - 8 on a 10x10 canvas is -3, and passing a
+   negative radius to ctx.arc() throws IndexSizeError uncaught. Caught
+   live: two real exceptions fired in Chrome navigating My Money mid-
+   scroll. Both now clamp R to a minimum of 4px. */
+(function(){
+  const mkTinyCanvas = () => {
+    const c = document.createElement('canvas');
+    document.body.appendChild(c);
+    c.getBoundingClientRect = () => ({ width: 0, height: 0, top: 0, left: 0 });
+    return c;
+  };
+
+  let donutThrew = false;
+  try {
+    const c = mkTinyCanvas();
+    Charts.donut(c, [{ label: 'A', value: 1 }, { label: 'B', value: 1 }]);
+    c.remove();
+  } catch(e){ donutThrew = e; }
+  assert('Charts.donut: a mid-layout 0-size canvas (size() floors it at 10x10) never drives R negative into ctx.arc()',
+    !donutThrew, String(donutThrew));
+
+  let radarThrew = false;
+  try {
+    const c = mkTinyCanvas();
+    Charts.radar(c, [{ label: 'X', angle: 30, strength: .5, senti: 'bull' }]);
+    c.remove();
+  } catch(e){ radarThrew = e; }
+  assert('Charts.radar: same 0-size-canvas guard applied to the Sector Radar panel',
+    !radarThrew, String(radarThrew));
+})();
+
 /* ---------------- render (awaits the one async block) ---------------- */
 (async () => {
   await runPersistTests(); // async — must complete before we tally

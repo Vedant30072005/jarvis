@@ -1532,3 +1532,31 @@ just test-suite-green. Declined to touch trust/safety further (already
 near a sensible ceiling) or invent assistant-feel work without a real
 gap — padding either would have contradicted the project's own
 anti-feature-creep constitution to chase a number.
+
+**2026-07-29 · Fix: negative-radius canvas crash, found by testing in real
+Chrome** — User asked to actually run the project in a real browser
+(not just the embedded test harness) — this caught a genuine bug that
+275+ prior test.html assertions never exercised, because charts.js had
+zero test coverage until today. Two uncaught `IndexSizeError` exceptions
+fired live while scrolling the My Money view: `donut()` and `radar()`
+both compute their circle radius as `Math.min(w,h)/2 - N` straight from
+the canvas's live layout size, with no floor. `size()` clamps the
+canvas itself to a 10x10 minimum whenever its container is mid-layout
+(0 width during a view transition, before CSS settles) — but on a
+10x10 canvas, `10/2 - 8 = -3`, and `ctx.arc()` throws on a negative
+radius instead of clamping it. Both now floor R at 4px. A third spot
+(the donut's mouse-hit-testing R) shared the same unclamped formula but
+never reached `ctx.arc()` — fixed anyway for consistency between the
+hover hit-test and what's actually drawn.
+Added Charts to test.html's real coverage (it was loaded but had zero
+assertions before this) — two regression tests construct a real canvas,
+stub `getBoundingClientRect` to 0x0, and assert `donut()`/`radar()`
+don't throw. Verified live in actual Chrome (not the embedded harness):
+reproduced the original crash's exact trigger (rapid scroll through My
+Money mid-view-transition) before the fix, confirmed zero console
+errors after it, on the same real profile with real portfolio data.
+test.html: 277/277 (2 new).
+Why this matters beyond the fix itself: it's a concrete argument for
+"run it for real" as a step separate from a green test suite — a fully
+passing 275-assertion suite still shipped with a real uncaught crash
+in charts.js because that module had never been exercised at all.
