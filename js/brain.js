@@ -74,6 +74,7 @@ const Brain = {
    *  matches a missed query against. Hand-written, no AI. */
   INTENT_META: {
     'scenario':             { example: 'What if crude spikes 20%?', vocab: ['crude','oil','rbi','rate','rupee','dollar','vix','fii','monsoon','inflation','tariff','macro','scenario','propagate'] },
+    'market-today':         { example: 'Why is the Nifty up today?', vocab: ['nifty','sensex','market','driving','reason','rally','selloff','today'] },
     'sector-shock':         { example: 'What if defence drops 10%?', vocab: ['drops','drop','crash','crashes','falls','shock','correction'] },
     'compare-sectors':      { example: 'Compare banking vs defence', vocab: ['compare','versus','comparison'] },
     'sector-bull-case':     { example: "What's the bull case for defence?", vocab: ['bull','bullish','upside'] },
@@ -400,6 +401,41 @@ const Brain = {
           text += `\n\nNone of your holdings map to the affected sectors.`;
         }
         return { text: text + ' [→ Patterns, Causal Graph]', goto: 'patterns' };
+      }
+    },
+    {
+      // "Why is the market up today?" — a question about what ACTUALLY
+      // happened, not a hypothetical. Placed after `scenario` (macro
+      // stress-tests keep priority) but BEFORE `sector-shock`, whose
+      // /down N%/ pattern would otherwise read "why is Nifty down 1%"
+      // as a what-if shock. The trigger requires "why" or "the reason",
+      // which no hypothetical ("what if the market drops 20%") carries,
+      // so the two never compete.
+      id: 'market-today',
+      rx: /\b(?:why|what(?:'s| is| are)? the reason)\b[^?]{0,50}?\b(?:market|nifty|sensex|index|stocks?)\b[^?]{0,50}?\b(?:up|down|ris\w+|rall\w+|fall\w+|fell|gain\w*|los\w+|green|red|jump\w*|surg\w+|slump\w*|tank\w*)\b|what.?s (?:driving|behind) the (?:market|nifty|sensex|rally|selloff)|how.?s the market (?:doing|today)|\bmarket (?:today|recap)\b/i,
+      answer(){
+        const idx = Market.indices();
+        // Cite-or-silent: the SIM tape's numbers are invented, so with no
+        // live quotes the honest answer is "I don't know", never a
+        // simulated level dressed as today's close.
+        if (!idx.length){
+          return { text: `I don't have live index levels, Sir — the market tape needs the relay running (<code>node relay.js</code>). Without it the ticker you see is simulated, and I won't quote you an invented level as though it were today's market.` };
+        }
+        const stamp = Market.stamp();
+        const levels = idx.map(i =>
+          `<b>${U.esc(i.label)}</b> ${i.price.toLocaleString('en-IN', { maximumFractionDigits: 2 })} <span class="${i.changePct >= 0 ? 'hl-green' : 'hl-red'}">${i.changePct >= 0 ? '▲' : '▼'}${Math.abs(i.changePct).toFixed(2)}%</span>`
+        ).join(' · ');
+
+        const top = Engine.items.filter(i => !i.hype)
+          .sort((a, b) => b.impact - a.impact).slice(0, 3);
+        const sig = top.length
+          ? top.map(i => `▸ ${i.senti === 'bull' ? '▲' : i.senti === 'bear' ? '▼' : '•'} "${U.esc(String(i.t).slice(0, 90))}" — ${U.esc(i.s)}, impact ${i.impact}`).join('\n')
+          : '▸ Nothing on the board yet — run FETCH LIVE in Intel Feed for today\'s wires.';
+
+        return {
+          text: `${levels}${stamp ? ` <span style="color:var(--txt-3);font-size:.72rem">(live · as of ${stamp})</span>` : ''}\n\nHighest-impact signals on the board right now:\n${sig}\n\n<span style="color:var(--txt-3);font-size:.72rem">I can show you what moved and what was reported — I can't prove which caused which. No single headline "explains" an index move, and I won't pretend otherwise.</span>`,
+          goto: 'intel'
+        };
       }
     },
     {

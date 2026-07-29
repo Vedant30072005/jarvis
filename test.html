@@ -42,6 +42,11 @@
 <script src="js/portfolio.js"></script>
 <script src="js/quotes.js"></script>
 <script src="js/live.js"></script>
+<script src="js/market.js"></script>
+<!-- jarvis.js is a bare object literal (only a guarded speechSynthesis
+     hook runs at load), so it is safe here and gives the personality
+     intent table — e.g. the glossary regex — real test coverage. -->
+<script src="js/jarvis.js"></script>
 <script src="js/counterfactual.js"></script>
 <script src="js/alerts.js"></script>
 <script src="js/honesty.js"></script>
@@ -1926,6 +1931,10 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
     ['what if the rupee weakens', 'scenario'],
     ['impact of a VIX spike', 'scenario'],
     ['what if defence drops 15%', 'sector-shock'], // macro-free price shock stays with sector-shock
+    // market-today: what actually moved, vs the hypotheticals above
+    ["what is the reason behind today's Nifty 50 going up 1%", 'market-today'],
+    ['why is the market down today', 'market-today'],
+    ["what's driving the rally", 'market-today'],
     // negatives — must fall through to the personality table, not a wrong intent
     ['tell me a joke', null],
     ['brief me', null],
@@ -1940,6 +1949,82 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
   info('Brain corpus recall', `${CORPUS.length - failures.length}/${CORPUS.length} utterances routed correctly`);
   assert('Brain corpus: 100% intent-recall on the golden utterance set (additive — never weaken to pass)',
     failures.length === 0, failures.join(' | '));
+})();
+
+/* ================= market-today + glossary de-greedying ================= */
+/* Reported from real use: "What is the reason behind today's Nifty 50
+   going up 1%" answered "that term isn't in my economics glossary" —
+   the glossary rx was /what is|define|explain|meaning of/, so it
+   swallowed every sentence opening with "what is". Two fixes: anchor
+   the glossary on an actual definition SHAPE, and add a real
+   market-today intent for the question that was being asked. */
+(function(){
+  const savedLive = Market.live, savedAsOf = Market.asOf, savedItems = Engine.items;
+
+  // --- the exact reported query now routes to market-today, not glossary
+  assert('market-today: the reported real-world miss ("what is the reason behind today\'s Nifty 50 going up 1%") now routes to market-today',
+    Brain.matchIntentId("What is the reason behind today's Nifty 50 going up 1%") === 'market-today',
+    String(Brain.matchIntentId("What is the reason behind today's Nifty 50 going up 1%")));
+
+  assert('market-today: "why is the nifty down 1% today" beats sector-shock — a why-question is not a what-if shock',
+    Brain.matchIntentId('why is the nifty down 1% today') === 'market-today',
+    String(Brain.matchIntentId('why is the nifty down 1% today')));
+
+  assert('market-today: hypotheticals still belong to sector-shock — "what if the market drops 20%" is NOT market-today',
+    Brain.matchIntentId('what if the market drops 20%') === 'sector-shock',
+    String(Brain.matchIntentId('what if the market drops 20%')));
+
+  assert('market-today: "am i beating the nifty" still routes to vs-index (own performance, not the market\'s move)',
+    Brain.matchIntentId('am i beating the nifty') === 'vs-index',
+    String(Brain.matchIntentId('am i beating the nifty')));
+
+  // --- cite-or-silent: no live quotes means NO invented index level
+  Market.live = {}; Market.asOf = null;
+  const dark = Brain.ask('why is the nifty up today');
+  assert('market-today: with no live quotes it refuses to quote a level and says the relay is needed — never reads out the SIM tape as fact',
+    dark && /relay/i.test(dark.text) && !/\d{2},\d{3}/.test(dark.text), JSON.stringify(dark));
+
+  // --- with live quotes: real levels + real signals + no causal claim
+  Market.live = {
+    'NIFTY 50':   { price: 24225.35, changePct: 1.0,  ts: Date.now() },
+    'SENSEX':     { price: 77632.09, changePct: 1.13, ts: Date.now() },
+    'BANK NIFTY': { price: 57156.40, changePct: 0.71, ts: Date.now() }
+  };
+  Market.asOf = Date.now();
+  Engine.items = [
+    { t:'HAL signs $3.1 billion fighter export deal', s:'Exchange Filing', senti:'bull', impact:97, sectors:['defence'], hype:false, entities:[] },
+    { t:'FIIs turn buyers: Rs 18,600 crore net equity inflow', s:'NSE Data', senti:'bull', impact:86, sectors:['banks'], hype:false, entities:[] },
+    { t:'Some hyped nonsense', s:'Blog', senti:'bull', impact:99, sectors:[], hype:true, entities:[] }
+  ];
+  const lit = Brain.ask('why is the nifty up today');
+  assert('market-today: cites the real index level and change from Market, not the simulated ticker seed',
+    lit && lit.text.includes('24,225.35') && lit.text.includes('1.00%'), String(lit && lit.text).slice(0, 200));
+  assert('market-today: lists the highest-impact real signals, hype-quarantined ones excluded',
+    lit.text.includes('HAL signs') && lit.text.includes('FIIs turn buyers') && !lit.text.includes('hyped nonsense'),
+    String(lit.text).slice(0, 300));
+  assert('market-today: explicitly refuses to claim causation — shows what moved and what was reported, never "X caused Y"',
+    /can't prove which caused which/i.test(lit.text) && lit.goto === 'intel', String(lit.text).slice(-200));
+
+  // --- the glossary still works for actual definition requests
+  Market.live = savedLive; Market.asOf = savedAsOf; Engine.items = savedItems;
+  const g = Jarvis.INTENTS.find(i => /meaning of/.test(i.rx.source));
+  assert('glossary: still catches a real definition request ("what is FII")',
+    g.rx.test('what is FII'), String(g.rx));
+  assert('glossary: also catches "define capex" and "what does moat mean"',
+    g.rx.test('define capex') && g.rx.test('what does moat mean'), String(g.rx));
+  assert('glossary: no longer swallows a full question sentence — the de-greedying that caused the reported bug',
+    !g.rx.test("What is the reason behind today's Nifty 50 going up 1%"), String(g.rx));
+})();
+
+(function(){
+  assert('Market.indices: returns only instruments with a real live quote — SIM seeds are never citable',
+    (() => { const s = Market.live; Market.live = { 'NIFTY 50': { price: 100, changePct: 1, ts: 1 } };
+      const r = Market.indices(); Market.live = s;
+      return r.length === 1 && r[0].label === 'NIFTY 50'; })());
+
+  assert('Market.refresh: relay unreachable resolves to 0 and never throws (tape stays on SIM, boot never blocks)',
+    (() => { const f = window.fetch; window.fetch = () => Promise.reject(new Error('ECONNREFUSED'));
+      const p = Market.refresh(); window.fetch = f; return p instanceof Promise; })());
 })();
 
 /* ================= Charts: negative-radius crash (found via live Chrome testing) ================= */

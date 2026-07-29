@@ -424,6 +424,13 @@ const App = {
       const td = cellEl.querySelector('.td');
       td.className = 'td ' + (t.d >= 0 ? 'up' : 'dn');
       td.textContent = `${t.d >= 0 ? '▲' : '▼'}${Math.abs(t.d).toFixed(2)}%`;
+      // Per-instrument honesty: a cell showing a real quote reads at full
+      // strength; one still on its simulated seed is dimmed and says so on
+      // hover, so a live tape can never silently carry an invented print.
+      cellEl.style.opacity = t.live ? '' : '.5';
+      cellEl.title = t.live
+        ? `Live quote via the local relay · as of ${Market.stamp() || '—'}`
+        : 'Simulated — no live quote for this instrument (run node relay.js)';
       if (flash && FX.enabled){
         const tv = cellEl.querySelector('.tv');
         tv.classList.remove('flash-up', 'flash-dn');
@@ -431,16 +438,50 @@ const App = {
         tv.classList.add(t.d >= 0 ? 'flash-up' : 'flash-dn');
       }
     };
-    data.forEach((t, i) => { paint(cells[i], t, false); paint(cells[i + data.length], t, false); });
-    setInterval(() => {
-      data.forEach((t, i) => {
-        const step = (Math.random() - .485) * .1;
-        t.d = +(t.d + step).toFixed(2);
-        t.v = t.v * (1 + step / 100);
-        paint(cells[i], t, true);
-        paint(cells[i + data.length], t, true);
+    const repaint = flash => data.forEach((t, i) => {
+      paint(cells[i], t, flash); paint(cells[i + data.length], t, flash);
+    });
+    repaint(false);
+
+    const chip = document.getElementById('modeChip');
+    const setMode = live => {
+      if (!chip) return;
+      chip.textContent = live ? 'LIVE' : 'SIM FEED';
+      chip.title = live
+        ? `Real market quotes via the local relay · as of ${Market.stamp() || '—'}`
+        : 'Simulated tape — start the relay (node relay.js) for real quotes';
+    };
+
+    // The seeded random walk stays ONLY as the relay-down fallback. It is
+    // never applied to a live value: nudging a real quote by Math.random()
+    // would turn a true print into a fabricated one.
+    let simTimer = null;
+    const startSim = () => {
+      if (simTimer) return;
+      simTimer = setInterval(() => {
+        data.forEach(t => {
+          if (t.live) return;
+          const step = (Math.random() - .485) * .1;
+          t.d = +(t.d + step).toFixed(2);
+          t.v = t.v * (1 + step / 100);
+        });
+        repaint(true);
+      }, 3000);
+    };
+    const stopSim = () => { if (simTimer){ clearInterval(simTimer); simTimer = null; } };
+
+    const refresh = async () => {
+      const n = await Market.refresh();
+      data.forEach(t => {
+        const q = Market.get(t.k);
+        if (q){ t.v = q.price; t.d = q.changePct; t.live = true; }
       });
-    }, 3000);
+      if (n){ stopSim(); repaint(true); setMode(true); }
+      else { startSim(); setMode(false); }
+    };
+
+    refresh();                     // fire immediately, don't block boot
+    setInterval(refresh, 60000);   // and stay current every minute
   },
 
   startClock(){

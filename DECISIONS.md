@@ -1560,3 +1560,61 @@ Why this matters beyond the fix itself: it's a concrete argument for
 "run it for real" as a step separate from a green test suite — a fully
 passing 275-assertion suite still shipped with a real uncaught crash
 in charts.js because that module had never been exercised at all.
+
+**2026-07-29 · market-today intent + real market tape (reported from
+real use)** — User asked JARVIS "What is the reason behind today's
+Nifty 50 going up 1%" and got "that term isn't in my economics
+glossary yet." Three real defects behind one screenshot:
+
+1. **Greedy glossary rx.** It was `/what is|define|explain|meaning of/`
+   — matching ANY sentence opening with "what is". Now anchored on the
+   SHAPE of a definition request: trigger + a short bare term at the end
+   of the query (`what is FII`, `define capex`, `what does moat mean`).
+   A clause-length tail no longer qualifies, so real questions fall
+   through to the brain instead of being answered with a glossary miss.
+2. **No intent could answer the question at all.** Added `market-today`:
+   real index levels (Nifty/Sensex/Bank Nifty) + the day's highest-impact
+   signals, hype-quarantined ones excluded. Placed after `scenario` (macro
+   stress-tests keep priority) but BEFORE `sector-shock`, whose /down N%/
+   pattern would otherwise read "why is Nifty down 1%" as a what-if. The
+   two can't compete: market-today requires "why"/"the reason", which no
+   hypothetical carries.
+   **It explicitly refuses to claim causation** — "I can show you what
+   moved and what was reported; I can't prove which caused which." That
+   is the honest answer, not a hedge: no rule-based system (and no LLM
+   either) can establish why an index moved, and inventing a because-
+   clause is exactly the fabrication Art. 6 forbids. Correlation shown,
+   causation declined.
+3. **The ticker was fabricating market data.** It was a pure random walk
+   — seeded values nudged by `Math.random()` every 3s — rendered
+   identically to real quotes, and drift had carried the seeded Nifty
+   ~2,200 points from the real index. New `js/market.js` pulls real
+   quotes (^NSEI, ^BSESN, ^NSEBANK, INR=X, GC=F, BZ=F, BTC-USD, NQ=F)
+   through the relay's existing Yahoo proxy; all 8 verified live. The
+   badge now actually switches LIVE/SIM FEED (it was hardcoded "SIM
+   FEED" and never updated in JS), live values are never touched by the
+   random walk, and any cell without a real quote is dimmed with a
+   "simulated" tooltip. Refresh is self-healing: it does NOT gate on
+   `Live.relayAvailable()`, whose probe caches for the session and so
+   would never notice a relay started after page load.
+   Gold is labelled **$/oz**, not ₹/10g: the international spot price it
+   maps to sits ~9-10% below the duty- and GST-inclusive Indian domestic
+   price, so a rupee label would be false precision. Chose an honest
+   label over a converted number.
+   The brain cites `Market.indices()`, which returns LIVE values only —
+   with the relay down `market-today` says so and quotes nothing, rather
+   than reading the SIM tape out as fact.
+
+Also loaded `js/jarvis.js` into test.html for the first time (it's a
+bare object literal — only a guarded speechSynthesis hook runs at load),
+giving the personality intent table real coverage; the glossary
+regression is asserted directly against the shipping regex rather than
+a copy that could drift.
+Verified live in Chrome with the relay up: the exact reported query now
+returns "NIFTY 50 24,230.1 ▲1.02% · SENSEX 77,587.31 ▲1.07% · BANK
+NIFTY 57,158.8 ▲0.71% (live · as of 11:52 am)" plus the three
+highest-impact signals and the no-causation line — and the tape badge
+reads LIVE with all 8 instruments real. test.html: 290/290 (13 new,
+incl. the reported query added to the golden corpus so this exact
+regression is permanently guarded). Self-routing meta-test still green,
+so the new intent didn't disturb table ordering.

@@ -42,8 +42,13 @@ one commitment for next week. Download the markdown memo at the end.
 ## Talking to JARVIS
 
 Open the chat dock (bottom right / the chat icon) and ask things like
-*"what's hot right now"*, *"what should I worry about"*, *"how's HAL
-doing"* (your own qty, value, P&L and real headline mentions of that
+*"why is the Nifty up today"* (real index levels through the relay,
+plus the day's highest-impact signals — it shows what moved and what
+was reported, and says plainly that it can't prove which caused which;
+with the relay off it refuses to quote a level rather than read out the
+simulated tape), *"what's hot right now"*, *"what should I worry
+about"*, *"how's HAL doing"* (your own qty, value, P&L and real
+headline mentions of that
 name — not just its sector, and it says plainly if you don't hold it),
 *"what if defence drops 15%"*, *"what's my
 biggest single-stock risk"*, *"how much of my portfolio is hedged"*,
@@ -93,3 +98,20 @@ Everything stays on this machine except whitelisted GET requests for
 public news/quotes. A dedicated, extension-free browser profile is
 recommended (shown once on first boot) — see `THREAT-MODEL.md`,
 Boundary 1, for why.
+
+## The market tape (LIVE vs SIM)
+
+The ticker across the top used to be a pure simulation — seeded values
+nudged by a random walk every few seconds. Those prints looked exactly
+like real quotes, and had drifted the Nifty ~2,200 points away from the
+actual index. It now pulls **real** index, FX and commodity quotes
+through the relay (`node relay.js`) and tells you which mode it is in:
+
+- **LIVE** badge — real quotes, refreshed every 60s; hover any value for
+  its as-of time. Live values are never touched by the random walk.
+- **SIM FEED** badge — the relay isn't running, so the tape falls back
+  to seeded values and dims any cell it can't quote for real.
+
+Gold is quoted **$/oz**, not ₹/10g, on purpose: the international spot
+price it maps to sits below the duty- and GST-inclusive Indian domestic
+price, so labelling it in rupees would be false precision.

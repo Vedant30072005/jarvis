@@ -352,13 +352,20 @@ JDATA.FEED = [
     b:'Global pension and sovereign funds bought operating road and transmission portfolios — patient capital keeps re-rating the sector.' }
 ];
 
-/* ---------------- market ticker seeds (simulated stream) ---------------- */
+/* ---------------- market ticker seeds ----------------
+   FALLBACK ONLY. These are the values shown when the relay is down and
+   the tape runs in SIM mode (badge reads "SIM FEED", cells dimmed). When
+   the relay is up, js/market.js overwrites every one of these with a real
+   Yahoo quote — see the honesty note at the top of that file.
+   Labels match Market.SYMBOLS keys exactly; gold is quoted $/oz rather
+   than ₹/10g because the international spot price it maps to sits below
+   the duty- and GST-inclusive Indian domestic price. */
 JDATA.TICKERS = [
-  { k:'NIFTY 50',   v:26418.40, dec:2 },
-  { k:'SENSEX',     v:86912.75, dec:2 },
-  { k:'BANK NIFTY', v:59284.10, dec:2 },
+  { k:'NIFTY 50',   v:24225.35, dec:2 },
+  { k:'SENSEX',     v:77632.09, dec:2 },
+  { k:'BANK NIFTY', v:57156.40, dec:2 },
   { k:'USD/INR',    v:85.62,    dec:2 },
-  { k:'GOLD ₹/10g', v:103480,   dec:0 },
+  { k:'GOLD $/oz',  v:4032.90,  dec:2 },
   { k:'BRENT $',    v:77.90,    dec:2 },
   { k:'BTC $',      v:117940,   dec:0 },
   { k:'NASDAQ FUT', v:24310.5,  dec:1 }

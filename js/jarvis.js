@@ -231,7 +231,14 @@ const Jarvis = {
         return `${U.fmtINR(p)} compounding at ${rate}% for ${yrs} years becomes <span class="hl-gold">${U.fmtCompact(fv)}</span> — a ${(fv/p).toFixed(1)}× multiple.`;
       } },
 
-    { rx: /what is|define|explain|meaning of/i,
+    // Glossary lookup. The old regex was /what is|define|explain|meaning of/
+    // — which swallowed ANY sentence opening with "what is", including
+    // "what is the reason behind today's Nifty going up 1%", and answered
+    // it with "that term isn't in my glossary". A definition request has a
+    // recognisable shape: the trigger is followed by a SHORT bare term at
+    // the end of the query, not a clause. Anchoring on that shape keeps
+    // "what is FII" here and lets real questions fall through to the brain.
+    { rx: /\b(?:what(?:'s| is| are)|define|explain|meaning of)\s+(?:an?\s+|the\s+)?[a-z][a-z&/ ]{1,22}\s*\??$|\bwhat does\s+[a-z][a-z&/ ]{1,22}\s+mean\b/i,
       fn(m, text){
         const key = Object.keys(JDATA.GLOSSARY).find(k => text.toLowerCase().includes(k));
         if (key) return `<b>${key.toUpperCase()}</b> — ${U.esc(JDATA.GLOSSARY[key])}`;
