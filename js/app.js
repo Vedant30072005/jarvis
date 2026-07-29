@@ -13,7 +13,7 @@ const App = {
   SETTINGS_KEY: 'jarvis.settings.v1',
   SETTINGS_VERSION: 1,
   SETTINGS_MIGRATIONS: { 0: (data) => data }, // v0 (unversioned object) -> v1: shape unchanged, just wrapped
-  settings: { voiceOn: false, fxOff: false, bootAlways: false, usdInr: 85.5, privacyBlur: false, seenBrowserProfileNotice: false },
+  settings: { voiceOn: false, fxOff: false, bootAlways: false, usdInr: 85.5, privacyBlur: false, seenBrowserProfileNotice: false, localLlm: false },
 
   VIEW_TITLES: {
     command:'COMMAND CENTER', intel:'INTEL FEED', patterns:'PATTERN ENGINE',
@@ -36,6 +36,7 @@ const App = {
     TabGuard.init();
     this.loadSettings();
     Engine.USD_INR = this.settings.usdInr || 85.5; // ORD-205
+    LocalLLM.enabled = !!this.settings.localLlm;    // ORD-1511 seam — opt-in only
     Portfolio.load();
     Engine.run(JDATA.FEED);
 
@@ -287,6 +288,10 @@ const App = {
         <button class="switch" id="setPrivacy" aria-pressed="${!!this.settings.privacyBlur}" aria-label="Toggle privacy blur"></button>
       </div>
       <div class="setting-row">
+        <p>Local model assist<small>OFF by default. Uses <b>${U.esc(LocalLLM.MODEL)}</b> running on this machine via Ollama — nothing leaves your computer. It may only <b>route</b> a question my rules failed to parse, and <b>ask</b> questions about a thesis you wrote. It never writes an answer, never produces a number, and never touches your ledger — every figure stays mine. Adds ~3s on missed questions only; holds ~9GB RAM while on</small></p>
+        <button class="switch" id="setLocalLlm" aria-pressed="${!!this.settings.localLlm}" aria-label="Toggle local model assist"></button>
+      </div>
+      <div class="setting-row">
         <p>USD/INR rate<small>Used to convert $ amounts in headlines to ₹ crore (ORD-205). Update occasionally — new signals use it going forward</small></p>
         <input type="number" id="setUsdInr" min="1" step="0.01" value="${this.settings.usdInr}" style="width:90px;min-height:38px;text-align:right" aria-label="USD to INR rate">
       </div>
@@ -328,6 +333,19 @@ const App = {
       e.currentTarget.setAttribute('aria-pressed', String(this.settings.privacyBlur));
       document.body.classList.toggle('privacy-blur', !!this.settings.privacyBlur);
       this.saveSettings();
+    });
+    root.querySelector('#setLocalLlm').addEventListener('click', async e => {
+      this.settings.localLlm = !this.settings.localLlm;
+      LocalLLM.enabled = this.settings.localLlm;
+      e.currentTarget.setAttribute('aria-pressed', String(this.settings.localLlm));
+      this.saveSettings();
+      if (this.settings.localLlm){
+        LocalLLM.available = null; // re-probe: Ollama may have started since boot
+        this.toast(await LocalLLM.probe()
+          ? `Local model assist on — ${LocalLLM.MODEL} reachable`
+          : `Ollama or ${LocalLLM.MODEL} not reachable — assist stays inert until it is`,
+          await LocalLLM.probe() ? 'ok' : 'err');
+      }
     });
     root.querySelector('#setUsdInr').addEventListener('change', e => {
       const v = parseFloat(/** @type {HTMLInputElement} */ (e.target).value);

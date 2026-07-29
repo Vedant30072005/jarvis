@@ -322,6 +322,26 @@ const Jarvis = {
     // "queries I couldn't answer") and offer chips when there's at least
     // one plausible guess to teach.
     Brain.logMiss(t);
+
+    // ORD-1511 seam, opt-in: the deterministic matcher has already missed,
+    // so a local model gets one attempt to ROUTE this to an existing
+    // intent. It never composes the reply — the answer below still comes
+    // from that intent's ordinary cite-or-silent template, so no figure
+    // in it originated from the model. Anything outside the known id list
+    // is discarded upstream and we fall through to the chips as before.
+    if (LocalLLM.enabled){
+      const routed = await LocalLLM.route(t, Brain.INTENTS.map(i => i.id));
+      const intent = routed && Brain.intentById(routed);
+      if (intent){
+        const out = intent.answer(Brain.normalize(t));
+        if (out.goto) App.gotoView(out.goto, { silent: true });
+        await this.say(
+          `<span style="color:var(--txt-3);font-size:.72rem">My rules didn't parse that; the local model read it as <b>"${U.esc(Brain.INTENT_META[routed]?.example || routed)}"</b> — the numbers below are still mine, not its.</span><br>${out.text}` +
+          `<div style="margin-top:8px;color:var(--txt-3);font-size:.72rem">Wrong read? Teach me the right one:</div><div class="chip-row" style="margin-top:4px">${teachChips(interp.guesses || [routed])}</div>`
+        );
+        return;
+      }
+    }
     if (interp.kind === 'ambiguous' && interp.guesses.length){
       await this.say(`I didn't quite parse that, Sir. Did you mean:<div class="chip-row" style="margin-top:8px">${teachChips(interp.guesses)}</div><span style="color:var(--txt-3);font-size:.72rem">Picking one teaches me — that phrasing will route there from now on.</span>`);
       return;

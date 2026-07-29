@@ -231,6 +231,74 @@ async function handleQuote(req, res, url){
   send(res, req, 200, out);
 }
 
+/* POST /llm — narrow passthrough to a LOCAL Ollama (ORD-1511 seam).
+   The browser cannot call Ollama directly: its CORS policy rejects the
+   app's origin, and the alternative — telling the user to set
+   OLLAMA_ORIGINS=* — would expose their local model to EVERY website
+   they visit. Routing through this relay instead keeps that door shut,
+   reuses the exact-localhost CORS reflection already trusted here, and
+   confines the surface to two endpoints.
+
+   Deliberately NOT a general proxy: only /api/generate and /api/tags are
+   reachable, so this can't be walked into Ollama's model-management API
+   (pull/create/delete). Traffic never leaves the machine — 127.0.0.1 to
+   127.0.0.1 — so Constitution Art. 7 is untouched.
+
+   No write token here (unlike /store): the worst a rogue local page can
+   do through this is spend GPU time, not corrupt the ledger. The
+   exact-localhost CORS check remains the gate. */
+const OLLAMA_PORT = Number(process.env.JARVIS_OLLAMA_PORT) || 11434;
+const LLM_PATHS = new Set(['/api/generate', '/api/tags']);
+const LLM_TIMEOUT_MS = 60000; // local inference is slow; ~13s cold, ~3s warm
+
+function handleLlm(req, res){
+  if (req.method !== 'POST') return send(res, req, 405, { error: 'POST only on /llm' });
+  let size = 0; const chunks = [];
+  req.on('data', c => {
+    size += c.length;
+    if (size > MAX_BODY_BYTES){ req.destroy(); return; }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    if (size > MAX_BODY_BYTES) return send(res, req, 413, { error: 'body exceeded 2MB cap' });
+    let parsed;
+    try { parsed = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+    catch(e){ return send(res, req, 400, { error: 'body is not valid JSON' }); }
+
+    const path = String(parsed.path || '');
+    if (!LLM_PATHS.has(path))
+      return send(res, req, 400, { error: `path not allowed: ${path}` });
+
+    const payload = Buffer.from(JSON.stringify(parsed.body || {}), 'utf8');
+    const isGet = path === '/api/tags';
+    const t0 = Date.now();
+    // Content-Length must NOT be set on the GET: Ollama would then block
+    // waiting for a body we never send, and the call dies on timeout.
+    const up = http.request({
+      host: '127.0.0.1', port: OLLAMA_PORT, path, method: isGet ? 'GET' : 'POST',
+      headers: isGet ? {} : { 'Content-Type': 'application/json', 'Content-Length': payload.length }
+    }, upRes => {
+      let body = '';
+      upRes.setEncoding('utf8');
+      upRes.on('data', d => {
+        body += d;
+        if (body.length > MAX_BODY_BYTES) upRes.destroy();
+      });
+      upRes.on('end', () => {
+        logLine(`ollama:${path}`, Date.now() - t0, 'OK');
+        sendRaw(res, req, 200, body, 'application/json');
+      });
+    });
+    up.setTimeout(LLM_TIMEOUT_MS, () => { up.destroy(new Error('ollama timeout')); });
+    up.on('error', e => {
+      logError(`llm ${path}: ${e.message}`);
+      send(res, req, 502, { error: 'local model unreachable — is Ollama running?' });
+    });
+    if (!isGet) up.write(payload);
+    up.end();
+  });
+}
+
 function handleHealth(req, res){
   send(res, req, 200, {
     ok: true,
@@ -309,7 +377,8 @@ const server = http.createServer((req, res) => {
   // POST is allowed ONLY on /store (the durability write path); every
   // other route stays GET-only, preserving the original proxy's posture.
   if (url.pathname.startsWith('/store/')) return handleStore(req, res, url);
-  if (req.method !== 'GET'){ send(res, req, 405, { error: 'GET only (POST allowed on /store only)' }); return; }
+  if (url.pathname === '/llm') return handleLlm(req, res);
+  if (req.method !== 'GET'){ send(res, req, 405, { error: 'GET only (POST allowed on /store and /llm only)' }); return; }
 
   if (url.pathname === '/health') return handleHealth(req, res);
   if (url.pathname === '/token') return handleToken(req, res);

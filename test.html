@@ -43,6 +43,7 @@
 <script src="js/quotes.js"></script>
 <script src="js/live.js"></script>
 <script src="js/market.js"></script>
+<script src="js/local-llm.js"></script>
 <!-- jarvis.js is a bare object literal (only a guarded speechSynthesis
      hook runs at load), so it is safe here and gives the personality
      intent table — e.g. the glossary regex — real test coverage. -->
@@ -2097,6 +2098,67 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
       return open === 20000 && shut === 300000; })());
 })();
 
+/* ================= LocalLLM: route-don't-answer containment ================= */
+/* The whole safety case rests on one property: nothing the model emits
+   can become a displayed fact. It may return an intent ID (whose answer
+   is then built by the deterministic template) or questions. These
+   assertions attack that boundary with hostile model output. */
+async function runLocalLlmTests(){
+  const realFetch = window.fetch;
+  const saved = { enabled: LocalLLM.enabled, available: LocalLLM.available };
+  const IDS = ['whats-hot', 'hedged', 'calibration'];
+  const mock = resp => { window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ response: resp }) }); };
+
+  LocalLLM.enabled = true; LocalLLM.available = true;
+
+  assert('LocalLLM.route: a valid id from the allowed list is accepted',
+    (await (mock('hedged'), LocalLLM.route('am i safe', IDS))) === 'hedged');
+
+  assert('LocalLLM.route: an id NOT in the allowed list is discarded — a hallucinated route can never fire',
+    (await (mock('buy-tesla-now'), LocalLLM.route('x', IDS))) === null);
+
+  assert('LocalLLM.route: "NONE" (honest abstention) yields null, not a forced wrong route',
+    (await (mock('NONE'), LocalLLM.route('what is the weather', IDS))) === null);
+
+  assert('LocalLLM.route: prose/preamble around an id is rejected rather than substring-matched into a route',
+    (await (mock('I think the answer is probably hedged'), LocalLLM.route('x', IDS))) === null);
+
+  assert('LocalLLM.route: a fabricated NUMBER in the response can never be routed or surfaced',
+    (await (mock('NIFTY is at 24,225 and rising'), LocalLLM.route('x', IDS))) === null);
+
+  assert('LocalLLM.route: empty / garbage response degrades to null',
+    (await (mock(''), LocalLLM.route('x', IDS))) === null &&
+    (await (mock('   \n  '), LocalLLM.route('x', IDS))) === null);
+
+  // critique() must yield QUESTIONS only — an assertion is the model
+  // drifting into stating facts, which is exactly what must not reach the user.
+  assert('LocalLLM.critique: keeps questions, drops any declarative line (a stated "fact" from the model is filtered out)',
+    (await (mock('What would falsify this thesis?\nHAL will definitely rise 40% this year.\nWhat is your exit trigger?\nWhat evidence supports the demand assumption?'),
+      LocalLLM.critique('Defence spending is structurally rising and HAL is the prime beneficiary of the order book.')))
+      .every(q => q.endsWith('?')));
+
+  assert('LocalLLM.critique: a response with no questions at all yields null rather than surfacing assertions',
+    (await (mock('This thesis is excellent. Buy immediately.'),
+      LocalLLM.critique('Defence spending is structurally rising and HAL benefits from the order book.'))) === null);
+
+  assert('LocalLLM.critique: refuses to run on a stub thesis (nothing meaningful to interrogate)',
+    (await (mock('What?'), LocalLLM.critique('too short'))) === null);
+
+  // the master switch
+  LocalLLM.enabled = false;
+  assert('LocalLLM: disabled is truly inert — no call is made even with a model reachable (Art. 12, opt-in only)',
+    (await (mock('hedged'), LocalLLM.route('am i safe', IDS))) === null);
+
+  LocalLLM.enabled = true;
+  window.fetch = () => Promise.reject(new Error('ECONNREFUSED'));
+  LocalLLM.available = true;
+  assert('LocalLLM: Ollama unreachable degrades silently to null — chat falls back to the existing chips, never throws',
+    (await LocalLLM.route('am i safe', IDS)) === null);
+
+  window.fetch = realFetch;
+  LocalLLM.enabled = saved.enabled; LocalLLM.available = saved.available;
+}
+
 /* ================= Charts: negative-radius crash (found via live Chrome testing) ================= */
 /* donut() and radar() computed R from the canvas's live bounding rect
    with no floor — size() clamps the canvas itself to a 10x10 minimum
@@ -2136,6 +2198,7 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
 (async () => {
   await runPersistTests(); // async — must complete before we tally
   await runQuotesLiveTests(); // async — same reason
+  await runLocalLlmTests(); // async — same reason
 
   const out = document.getElementById('out');
   out.innerHTML = '<h2>Results</h2>' + results.map(r => `

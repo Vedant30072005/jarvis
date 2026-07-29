@@ -1669,3 +1669,70 @@ test.html: 302/302 (12 new — age-from-print-not-fetch, the null-timestamp
 fallback, unknown-instrument returns null rather than 0, the NSE scoping
 regression, and the IST session clock built from UTC instants so it holds
 on any machine timezone).
+
+**2026-07-29 · Local model assist (ORD-1511 seam) — opt-in, route-only**
+— User has qwen2.5-coder:14b running locally and asked whether to use
+it. This is materially different from the hosted-API question I declined
+earlier: nothing leaves the machine, so Art. 7 is untouched, and three
+of my five original objections (data egress, key/rate-limit fragility,
+network dependency) simply don't apply. The two that remain —
+non-determinism and hallucination — are answered by architecture, not
+by trust.
+
+**The rule: the model may ROUTE and may ASK, never ANSWER.**
+`route()` maps a query the deterministic matcher already MISSED onto an
+existing intent id; the reply is then built by that intent's ordinary
+cite-or-silent template, so every figure on screen still originates in
+the engine. `critique()` returns QUESTIONS about a thesis the user
+wrote — a weak question is merely weak, it cannot be a false number.
+Containment is structural, not probabilistic: any token not an exact
+member of the allowed id list is discarded, so there is no path by which
+a hallucination becomes a displayed fact. Twelve assertions attack that
+boundary directly with hostile output (invented ids, prose-wrapped ids,
+a fabricated NIFTY level, empty responses) — all resolve to null.
+
+**Benchmarked before building, not after.** ~2.7s warm, ~13s cold,
+6/7 correct on hard paraphrases, and it correctly answered NONE to
+"what's the weather in Mumbai" — abstention works. 2.7s is unusable on
+the main path and fine on a fallback, which is exactly why it fires only
+after a miss: the 100%-recall golden corpus still answers in 0ms and
+never touches this module. All 313 assertions stay deterministic because
+the rule-based path is untouched.
+
+**CORS forced a design decision.** The browser cannot call Ollama
+directly — its CORS rejects the app origin. The common workaround,
+`OLLAMA_ORIGINS=*`, would expose the user's local model to EVERY website
+they visit; declined. Added a narrow `POST /llm` passthrough on the relay
+instead: exactly two upstream paths (`/api/generate`, `/api/tags`) so it
+can't be walked into Ollama's model-management API, 127.0.0.1→127.0.0.1
+only, reusing the exact-localhost CORS already trusted there. No write
+token (unlike /store) — the worst a rogue local page achieves here is
+spending GPU time, not corrupting the ledger. Verified: `/api/delete` is
+rejected. One bug of my own caught in testing — Content-Length was being
+set on the GET, so Ollama blocked awaiting a body that never came.
+
+**Ships OFF.** Settings toggle, off by default, degrades silently when
+Ollama or the relay is absent. Verified live end to end: "am I trading
+like a maniac" (a genuine rule-based miss) routed to trade-frequency and
+answered "Last 90 days: 0 trades (7 all-time on file)" — real ledger
+numbers, with the UI stating plainly that the model only read the
+question.
+
+**PROPOSED CONSTITUTIONAL AMENDMENT — for the human to accept or reject
+(Art. 12).** The "No AI / LLM APIs" section currently reads as an
+absolute. I have NOT edited CONSTITUTION.md; a model may propose, only
+Vedant amends. Proposed wording:
+  *"No hosted LLM APIs. A model running entirely on this machine is
+  permitted for ROUTING and QUESTION-ASKING only — never for composing
+  an answer, producing a number, or touching the ledger. It ships
+  disabled and every figure remains traceable to the rule-based engine."*
+Until that is accepted, the feature exists but stays off, which is the
+honest state: the code respects the constraint even though the setting
+now allows crossing it.
+
+test.html: 313/313 (12 new). Separately noted: the ORD-1704 scramble
+null-model test is stochastically flaky (random shuffle each run; failed
+once at real=84 vs scrambled=85, passed on re-run). Pre-existing and
+unrelated to this change — recorded rather than "fixed" by loosening it,
+since weakening an assertion to make it pass is the one thing that
+convention forbids.
