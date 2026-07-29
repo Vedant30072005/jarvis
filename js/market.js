@@ -70,6 +70,7 @@ const Market = {
           this.live[label] = {
             price: e.price,
             changePct: typeof e.changePct === 'number' ? e.changePct : 0,
+            quoteTime: typeof e.quoteTime === 'number' ? e.quoteTime : null,
             ts: e.ts || Date.now()
           };
           n++;
@@ -88,6 +89,86 @@ const Market = {
     return this.asOf
       ? new Date(this.asOf).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
       : null;
+  },
+
+  /* ---------------- staleness, stated not assumed ---------------- */
+
+  /** True age of an instrument's PRINT in seconds — measured from the
+   *  exchange's own timestamp, not from when we fetched it. Falls back
+   *  to fetch time when the upstream gave no quoteTime, which is the
+   *  pessimistic direction (never reports fresher than it can prove).
+   *  @param {string} label @returns {number|null} */
+  ageSec(label){
+    const q = this.live[label];
+    if (!q) return null;
+    return Math.max(0, Math.round((Date.now() - (q.quoteTime || q.ts)) / 1000));
+  },
+
+  /** Compact human age: "8s", "3m", "2h", "4d". @param {number} sec */
+  fmtAge(sec){
+    if (sec == null) return '—';
+    if (sec < 90) return `${sec}s`;
+    if (sec < 5400) return `${Math.round(sec / 60)}m`;
+    if (sec < 172800) return `${Math.round(sec / 3600)}h`;
+    return `${Math.round(sec / 86400)}d`;
+  },
+
+  /** Instruments that trade on the NSE clock. Only these can be judged
+   *  against the NSE session: Brent, COMEX gold and Nasdaq futures keep
+   *  their own hours, so a 15-minute-old Brent print at 10am IST is
+   *  normal, not a wedged feed. Flagging those would cry wolf every
+   *  morning and train the eye to ignore a warning that should mean
+   *  something. BTC is 24/7 but its feed is third-party, so it is
+   *  likewise not evidence about NSE freshness. */
+  NSE_BOUND: ['NIFTY 50', 'SENSEX', 'BANK NIFTY'],
+
+  /** Freshest and stalest print on the tape.
+   *  @param {string[]} [labels] restrict to a subset (default: all live)
+   *  @returns {{freshest:number|null, stalest:number|null}} */
+  ageRange(labels){
+    const keys = labels || Object.keys(this.live);
+    const ages = keys.map(l => this.ageSec(l)).filter(a => a != null);
+    return ages.length
+      ? { freshest: Math.min(...ages), stalest: Math.max(...ages) }
+      : { freshest: null, stalest: null };
+  },
+
+  /** Age range across NSE-clock instruments only — the number that
+   *  actually answers "is my Indian market data current right now?".
+   *  @returns {{freshest:number|null, stalest:number|null}} */
+  nseAgeRange(){ return this.ageRange(this.NSE_BOUND); },
+
+  /* ---------------- NSE session clock ----------------
+     Times are IST (Asia/Kolkata) regardless of where this machine
+     thinks it is — a laptop on the wrong timezone must not make the
+     app believe the market is open. Exchange HOLIDAYS are deliberately
+     not modelled: there is no holiday list in this codebase, so on a
+     trading holiday this reports OPEN while prices sit frozen. The
+     staleness readout is what catches that — an "OPEN" session whose
+     prints are hours old is visibly wrong, which is why age is shown
+     everywhere rather than trusted silently. */
+
+  /** @returns {{state:'OPEN'|'PRE_OPEN'|'CLOSED'|'WEEKEND', label:string}} */
+  session(now = new Date()){
+    // Shift to IST via the fixed +05:30 offset from UTC.
+    const ist = new Date(now.getTime() + (330 + now.getTimezoneOffset()) * 60000);
+    const day = ist.getDay();                       // 0 Sun … 6 Sat
+    const mins = ist.getHours() * 60 + ist.getMinutes();
+    if (day === 0 || day === 6) return { state: 'WEEKEND', label: 'WEEKEND' };
+    if (mins >= 555 && mins < 930) return { state: 'OPEN', label: 'MARKET OPEN' };      // 09:15–15:30
+    if (mins >= 540 && mins < 555) return { state: 'PRE_OPEN', label: 'PRE-OPEN' };     // 09:00–09:15
+    return { state: 'CLOSED', label: 'MARKET CLOSED' };
+  },
+
+  /** How often the tape should refresh, in ms — fast while the market
+   *  is actually moving, slow when nothing can change. Polling a closed
+   *  market every 20s is pure waste (and upstream load) for a number
+   *  that is frozen by definition. */
+  refreshMs(){
+    const s = this.session().state;
+    if (s === 'OPEN') return 20000;
+    if (s === 'PRE_OPEN') return 30000;
+    return 300000; // closed / weekend — the last close is not going to move
   },
 
   /** The index levels the brain is allowed to cite — LIVE only, never

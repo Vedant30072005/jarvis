@@ -422,6 +422,7 @@ const Brain = {
           return { text: `I don't have live index levels, Sir — the market tape needs the relay running (<code>node relay.js</code>). Without it the ticker you see is simulated, and I won't quote you an invented level as though it were today's market.` };
         }
         const stamp = Market.stamp();
+        const nseAge = Market.nseAgeRange().stalest;
         const levels = idx.map(i =>
           `<b>${U.esc(i.label)}</b> ${i.price.toLocaleString('en-IN', { maximumFractionDigits: 2 })} <span class="${i.changePct >= 0 ? 'hl-green' : 'hl-red'}">${i.changePct >= 0 ? '▲' : '▼'}${Math.abs(i.changePct).toFixed(2)}%</span>`
         ).join(' · ');
@@ -433,7 +434,7 @@ const Brain = {
           : '▸ Nothing on the board yet — run FETCH LIVE in Intel Feed for today\'s wires.';
 
         return {
-          text: `${levels}${stamp ? ` <span style="color:var(--txt-3);font-size:.72rem">(live · as of ${stamp})</span>` : ''}\n\nHighest-impact signals on the board right now:\n${sig}\n\n<span style="color:var(--txt-3);font-size:.72rem">I can show you what moved and what was reported — I can't prove which caused which. No single headline "explains" an index move, and I won't pretend otherwise.</span>`,
+          text: `${levels}\n<span style="color:var(--txt-3);font-size:.72rem">${U.esc(Market.session().label)} · oldest index print ${U.esc(Market.fmtAge(nseAge))} old${stamp ? ` · fetched ${U.esc(stamp)}` : ''}</span>\n\nHighest-impact signals on the board right now:\n${sig}\n\n<span style="color:var(--txt-3);font-size:.72rem">I can show you what moved and what was reported — I can't prove which caused which. No single headline "explains" an index move, and I won't pretend otherwise.</span>`,
           goto: 'intel'
         };
       }

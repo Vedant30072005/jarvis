@@ -86,7 +86,11 @@ const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2MB cap
 const UPSTREAM_TIMEOUT_MS = 8000;
 const RSS_FRESH_MS = 5 * 60 * 1000;      // serve straight from cache
 const RSS_STALE_TOLERABLE_MS = 15 * 60 * 1000; // serve stale + refresh in background
-const QUOTE_TTL_MS = 60 * 1000;
+// 15s, not 60s: the app now refreshes the tape every ~20s while NSE is
+// open, and a 60s cache would have served the same print three times over
+// and called it "live". The cache exists to stop request storms, not to
+// flatten the freshness the exchange is actually giving us.
+const QUOTE_TTL_MS = 15 * 1000;
 
 /** @type {Map<string, {body:string, contentType:string, ts:number, refreshing?:boolean}>} */
 const rssCache = new Map();
@@ -200,7 +204,17 @@ async function fetchOneQuote(symbol){
   if (!meta || typeof meta.regularMarketPrice !== 'number') throw new Error('no meta in chart response');
   const price = meta.regularMarketPrice;
   const prevClose = meta.previousClose ?? meta.chartPreviousClose ?? price;
-  const entry = { price, prevClose, changePct: prevClose ? +(100 * (price - prevClose) / prevClose).toFixed(2) : 0, ts: Date.now() };
+  // quoteTime is the EXCHANGE's timestamp for this print, not our fetch
+  // time — the only figure that can honestly answer "how stale is this?".
+  // Measured against NSE it runs ~10-15s behind live, but that has to be
+  // shown rather than assumed: a freshly-fetched quote can carry a print
+  // that is hours old (market closed, instrument halted, or illiquid).
+  const entry = {
+    price, prevClose,
+    changePct: prevClose ? +(100 * (price - prevClose) / prevClose).toFixed(2) : 0,
+    quoteTime: typeof meta.regularMarketTime === 'number' ? meta.regularMarketTime * 1000 : null,
+    ts: Date.now()
+  };
   quoteCache.set(symbol, entry);
   return entry;
 }

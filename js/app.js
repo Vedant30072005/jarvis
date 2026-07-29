@@ -429,7 +429,7 @@ const App = {
       // hover, so a live tape can never silently carry an invented print.
       cellEl.style.opacity = t.live ? '' : '.5';
       cellEl.title = t.live
-        ? `Live quote via the local relay · as of ${Market.stamp() || '—'}`
+        ? `${t.k} ${t.v} · print is ${Market.fmtAge(Market.ageSec(t.k))} old (exchange timestamp) · ${Market.session().label}`
         : 'Simulated — no live quote for this instrument (run node relay.js)';
       if (flash && FX.enabled){
         const tv = cellEl.querySelector('.tv');
@@ -443,13 +443,37 @@ const App = {
     });
     repaint(false);
 
+    // The badge states the freshness of the tape rather than just claiming
+    // "LIVE": a stale live feed is more dangerous than an honestly-labelled
+    // simulated one, because it looks authoritative. During market hours a
+    // print older than ~2 minutes is flagged amber so a silently-wedged
+    // feed can't pass for current.
     const chip = document.getElementById('modeChip');
     const setMode = live => {
       if (!chip) return;
-      chip.textContent = live ? 'LIVE' : 'SIM FEED';
-      chip.title = live
-        ? `Real market quotes via the local relay · as of ${Market.stamp() || '—'}`
-        : 'Simulated tape — start the relay (node relay.js) for real quotes';
+      const sess = Market.session();
+      if (!live){
+        chip.textContent = 'SIM FEED';
+        chip.style.color = '';
+        chip.title = 'Simulated tape — start the relay (node relay.js) for real quotes';
+        return;
+      }
+      // Judge freshness on the NSE-clock instruments only. Brent, gold and
+      // Nasdaq futures keep their own sessions, so including them would
+      // paint the badge amber every Indian morning for no real reason.
+      const { stalest } = Market.nseAgeRange();
+      const stale = sess.state === 'OPEN' && stalest != null && stalest > 120;
+      chip.textContent = `LIVE · ${Market.fmtAge(stalest)}`;
+      chip.style.color = stale ? 'var(--amber, #bd8a16)' : '';
+      const perInstrument = Market.NSE_BOUND
+        .filter(l => Market.get(l))
+        .map(l => `  ${l}: ${Market.fmtAge(Market.ageSec(l))} old`);
+      chip.title = [
+        `${sess.label} (NSE, IST — exchange holidays not tracked)`,
+        ...perInstrument,
+        `Fetched ${Market.stamp() || '—'} · refreshing every ${Math.round(Market.refreshMs() / 1000)}s`,
+        stale ? '⚠ Market is open but an NSE print is aging — that feed may be delayed or wedged.' : ''
+      ].filter(Boolean).join('\n');
     };
 
     // The seeded random walk stays ONLY as the relay-down fallback. It is
@@ -480,8 +504,21 @@ const App = {
       else { startSim(); setMode(false); }
     };
 
-    refresh();                     // fire immediately, don't block boot
-    setInterval(refresh, 60000);   // and stay current every minute
+    // Self-rescheduling rather than a fixed setInterval: the cadence has to
+    // follow the session (20s while NSE is open, 5min when it's shut), and
+    // that can change mid-session — a page left open across the 15:30 close
+    // must stop hammering upstream for a price that can no longer move.
+    let tapeTimer = null;
+    const loop = async () => {
+      await refresh();
+      clearTimeout(tapeTimer);
+      tapeTimer = setTimeout(loop, Market.refreshMs());
+    };
+    loop(); // fire immediately, don't block boot
+
+    // Re-badge every 10s even between fetches so the displayed age counts
+    // up honestly instead of freezing at whatever it was when last drawn.
+    setInterval(() => { if (Market.isLive) setMode(true); }, 10000);
   },
 
   startClock(){

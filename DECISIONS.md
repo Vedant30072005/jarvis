@@ -1618,3 +1618,54 @@ reads LIVE with all 8 instruments real. test.html: 290/290 (13 new,
 incl. the reported query added to the golden corpus so this exact
 regression is permanently guarded). Self-routing meta-test still green,
 so the new intent didn't disturb table ordering.
+
+**2026-07-29 · Staleness made visible; adaptive session-aware refresh** —
+User: "I want real-time updating data, I do not want any stale data —
+this is my personal assistant now." Two honest answers were needed.
+
+**First, a measurement instead of an assumption.** I had been about to
+repeat the folklore that Yahoo is "15 minutes delayed" for Indian
+equities. Measured it instead, against the exchange's own
+`regularMarketTime`: ^NSEI came back **11 seconds** old and RELIANCE.NS
+essentially live. So the existing pipe is far fresher than assumed and
+no broker API is needed for the tape to be current.
+
+**Second, the deliverable.** No free feed is tick-live, so "no stale
+data" cannot be promised — but staleness can be made impossible to miss,
+which is the Art. 4 answer ("every number answers says-who, as-of-when"):
+- The relay now passes through `quoteTime` (the EXCHANGE's print
+  timestamp), not just our fetch time. These differ in the dangerous
+  direction: a 2-second-old fetch can carry an hours-old print when an
+  instrument is halted, illiquid, or its market is shut. Age is measured
+  from the print, and falls back to fetch time only when upstream gives
+  no timestamp — pessimistic, never claiming fresher than provable.
+- `QUOTE_TTL_MS` 60s → 15s. With the tape refreshing every ~20s, a 60s
+  cache would have served one print three times and called it live.
+- Session clock (`Market.session()`), IST-anchored via a fixed +05:30
+  offset so a laptop on the wrong timezone can't convince the app the
+  market is open. Exchange HOLIDAYS are deliberately not modelled — no
+  holiday list exists in this codebase — and that gap is covered by the
+  staleness readout rather than hidden: an "OPEN" session whose prints
+  are hours old is visibly wrong on screen.
+- Refresh cadence follows the session: 20s open, 30s pre-open, 5min
+  closed. Self-rescheduling rather than setInterval, so a page left open
+  across the 15:30 close stops hammering upstream for a frozen number.
+
+**A flaw of my own, caught only by running it live.** Judging freshness
+across ALL instruments painted the badge amber every Indian morning,
+because Brent, COMEX gold and Nasdaq futures keep their own sessions —
+a 16-minute-old Brent print at 10am IST is normal, not a wedged feed.
+Crying wolf daily would train the eye to ignore the one warning that
+should matter. Freshness claims are now scoped to the Indian-hours
+instruments (`Market.NSE_BOUND`).
+
+That scoping immediately paid for itself: live, it surfaced that Yahoo's
+**Sensex feed is genuinely ~15 minutes delayed while Nifty is 3 seconds
+fresh** — a real, material difference that was completely invisible
+before, since the old tape rendered both as equally "live" random-walk
+numbers. The badge now names the lagging feed specifically.
+
+test.html: 302/302 (12 new — age-from-print-not-fetch, the null-timestamp
+fallback, unknown-instrument returns null rather than 0, the NSE scoping
+regression, and the IST session clock built from UTC instants so it holds
+on any machine timezone).

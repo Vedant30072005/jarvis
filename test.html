@@ -2027,6 +2027,76 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
       const p = Market.refresh(); window.fetch = f; return p instanceof Promise; })());
 })();
 
+/* ================= staleness: age measured from the EXCHANGE stamp ================= */
+/* "I don't want stale data" can't be delivered by wishing — no free feed
+   is tick-live. What CAN be delivered is that staleness is always
+   visible, measured from the exchange's own print time rather than from
+   our fetch time (a 2s-old fetch can carry an hours-old print). */
+(function(){
+  const saved = Market.live;
+
+  Market.live = {
+    'NIFTY 50':   { price: 100, changePct: 1, quoteTime: Date.now() - 8000,    ts: Date.now() },
+    'SENSEX':     { price: 200, changePct: 1, quoteTime: Date.now() - 300000,  ts: Date.now() }
+  };
+  assert('Market.ageSec: age comes from the exchange print time, NOT the fetch time — a fresh fetch of an old print reads old',
+    Market.ageSec('NIFTY 50') === 8 && Market.ageSec('SENSEX') === 300,
+    `${Market.ageSec('NIFTY 50')} / ${Market.ageSec('SENSEX')}`);
+
+  assert('Market.ageRange: reports the STALEST print, so one wedged instrument cannot hide behind seven fresh ones',
+    Market.ageRange().stalest === 300 && Market.ageRange().freshest === 8, JSON.stringify(Market.ageRange()));
+
+  // Caught in live testing: judging the tape on ALL instruments painted
+  // the badge amber every Indian morning because Brent/gold/Nasdaq futures
+  // keep their own sessions. Freshness claims are scoped to the NSE clock.
+  Market.live['BRENT $'] = { price: 80, changePct: 0, quoteTime: Date.now() - 960000, ts: Date.now() };
+  assert('Market.nseAgeRange: a 16-minute-old Brent print does NOT count against NSE freshness (no crying wolf every morning)',
+    Market.nseAgeRange().stalest === 300 && Market.ageRange().stalest === 960,
+    `nse=${Market.nseAgeRange().stalest} all=${Market.ageRange().stalest}`);
+  delete Market.live['BRENT $'];
+
+  // no quoteTime from upstream → fall back to fetch time (pessimistic:
+  // never claims fresher than it can prove)
+  Market.live = { 'NIFTY 50': { price: 1, changePct: 0, quoteTime: null, ts: Date.now() - 45000 } };
+  assert('Market.ageSec: with no exchange timestamp it falls back to fetch time rather than claiming zero age',
+    Market.ageSec('NIFTY 50') === 45, String(Market.ageSec('NIFTY 50')));
+
+  assert('Market.ageSec: an unknown instrument is null, never 0 (absence is not freshness)',
+    Market.ageSec('NOT A THING') === null);
+
+  assert('Market.fmtAge: compact and honest across scales',
+    Market.fmtAge(8) === '8s' && Market.fmtAge(300) === '5m' && Market.fmtAge(7200) === '2h' && Market.fmtAge(null) === '—',
+    [Market.fmtAge(8), Market.fmtAge(300), Market.fmtAge(7200), Market.fmtAge(null)].join(','));
+
+  Market.live = saved;
+})();
+
+/* ================= NSE session clock (IST-anchored) ================= */
+(function(){
+  // Built from a UTC instant so the assertion holds on any machine
+  // timezone — the whole point is that a laptop set to the wrong zone
+  // must not convince the app that the market is open.
+  const utc = (d, h, m) => new Date(Date.UTC(2026, 6, d, h, m)); // Jul 2026
+  // IST = UTC+5:30 → 04:00 UTC = 09:30 IST (open), 03:05 UTC = 08:35 IST (closed)
+  assert('Market.session: 09:30 IST on a Wednesday is OPEN',
+    Market.session(utc(29, 4, 0)).state === 'OPEN', JSON.stringify(Market.session(utc(29, 4, 0))));
+  assert('Market.session: 09:05 IST is PRE-OPEN, not OPEN',
+    Market.session(utc(29, 3, 35)).state === 'PRE_OPEN', JSON.stringify(Market.session(utc(29, 3, 35))));
+  assert('Market.session: 08:35 IST (before the bell) is CLOSED',
+    Market.session(utc(29, 3, 5)).state === 'CLOSED', JSON.stringify(Market.session(utc(29, 3, 5))));
+  assert('Market.session: 16:00 IST (after the 15:30 close) is CLOSED',
+    Market.session(utc(29, 10, 30)).state === 'CLOSED', JSON.stringify(Market.session(utc(29, 10, 30))));
+  assert('Market.session: Saturday is WEEKEND regardless of clock time',
+    Market.session(utc(25, 4, 0)).state === 'WEEKEND', JSON.stringify(Market.session(utc(25, 4, 0))));
+
+  assert('Market.refreshMs: polls fast only when the market can actually move (20s open vs 5min closed)',
+    (() => { const s = Market.session;
+      Market.session = () => ({ state: 'OPEN', label: 'x' });   const open = Market.refreshMs();
+      Market.session = () => ({ state: 'CLOSED', label: 'x' }); const shut = Market.refreshMs();
+      Market.session = s;
+      return open === 20000 && shut === 300000; })());
+})();
+
 /* ================= Charts: negative-radius crash (found via live Chrome testing) ================= */
 /* donut() and radar() computed R from the canvas's live bounding rect
    with no floor — size() clamps the canvas itself to a 10x10 minimum
