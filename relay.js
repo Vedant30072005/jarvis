@@ -248,7 +248,7 @@ async function handleQuote(req, res, url){
    do through this is spend GPU time, not corrupt the ledger. The
    exact-localhost CORS check remains the gate. */
 const OLLAMA_PORT = Number(process.env.JARVIS_OLLAMA_PORT) || 11434;
-const LLM_PATHS = new Set(['/api/generate', '/api/tags']);
+const LLM_PATHS = new Set(['/api/generate', '/api/chat', '/api/tags']);
 const LLM_TIMEOUT_MS = 60000; // local inference is slow; ~13s cold, ~3s warm
 
 function handleLlm(req, res){

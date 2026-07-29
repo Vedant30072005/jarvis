@@ -1736,3 +1736,37 @@ once at real=84 vs scrambled=85, passed on re-run). Pre-existing and
 unrelated to this change — recorded rather than "fixed" by loosening it,
 since weakening an assertion to make it pass is the one thing that
 convention forbids.
+
+**2026-07-29 · Fix: local model never armed (exact-name probe); resolve
+against what is actually installed** — The first cut of `local-llm.js`
+hardcoded `MODEL: 'qwen2.5:14b'` and probed with an exact name match.
+The machine has `qwen2.5-coder:14b`. So `probe()` returned false
+permanently: no error, no log, no UI signal — the feature would simply
+have done nothing forever after being switched on. I wrote that bug by
+coding against the model I had *recommended* rather than the one that
+was *installed*, and it survived because the test suite mocked the
+probe instead of resolving a real model list.
+
+Now `pickModel(installedNames)` resolves at probe time:
+user override (if genuinely installed) → MODEL_PREFERENCE in order →
+any `qwen2.5*` tag → null. Instruct is preferred over -coder because
+routing and thesis critique are natural-language reasoning, not code
+generation; 14B over 7B per the explicit "slower but better"
+instruction. An unanticipated tag (`:32b-instruct-q8_0`) still works
+rather than disabling the feature over a suffix, and an override naming
+something not installed is ignored rather than obeyed into a dead end.
+`installed[]` is retained so Settings can show what was actually seen —
+a wrong state should be diagnosable by looking, not by guessing.
+
+Verified live against real Ollama: armed=true, resolved
+`qwen2.5-coder:14b`, saw both installed tags. Routing end-to-end:
+"is all my money riding on one company" → single-stock-risk.
+Latency: ~11s cold load, then **0.5–0.9s warm** (KEEP_ALIVE 30m) —
+usable in chat. Containment held under a coder model: "what is the
+weather in Mumbai" → null, "am i gambling too much" → null rather than
+a confident wrong route. Accuracy is visibly blunter than the instruct
+build would give, which is the empirical case for `qwen2.5:14b`.
+
+test.html: 320/320 (7 new — including a direct regression for the
+exact-name bug: a machine holding only the coder build must resolve it,
+not disable itself).

@@ -2098,6 +2098,42 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
       return open === 20000 && shut === 300000; })());
 })();
 
+/* ================= LocalLLM: model resolution ================= */
+/* Regression for a bug that shipped in the first cut of local-llm.js: it
+   hardcoded MODEL:'qwen2.5:14b' and probed with an EXACT name match, so on
+   a machine holding 'qwen2.5-coder:14b' the feature silently never armed —
+   no error, no log, just permanently unavailable. Resolution now happens
+   against the live installed list. */
+(function(){
+  const savedOverride = LocalLLM.modelOverride;
+  LocalLLM.modelOverride = null;
+
+  assert('LocalLLM.pickModel: prefers the instruct build when present (routing/critique is language work, not code work)',
+    LocalLLM.pickModel(['qwen2.5-coder:14b', 'qwen2.5:14b', 'llama3:8b']) === 'qwen2.5:14b');
+
+  assert('LocalLLM.pickModel: falls back to the coder build rather than disabling itself — THE ORIGINAL BUG',
+    LocalLLM.pickModel(['qwen2.5-coder:14b']) === 'qwen2.5-coder:14b');
+
+  assert('LocalLLM.pickModel: 14B outranks 7B ("slower but better" was the explicit instruction)',
+    LocalLLM.pickModel(['qwen2.5-coder:7b', 'qwen2.5-coder:14b']) === 'qwen2.5-coder:14b');
+
+  assert('LocalLLM.pickModel: an unanticipated qwen2.5 tag still works instead of failing over a suffix',
+    LocalLLM.pickModel(['qwen2.5:32b-instruct-q8_0']) === 'qwen2.5:32b-instruct-q8_0');
+
+  assert('LocalLLM.pickModel: nothing suitable installed returns null — an honest off, not a silent one',
+    LocalLLM.pickModel(['llama3:8b', 'mistral:7b']) === null && LocalLLM.pickModel([]) === null);
+
+  LocalLLM.modelOverride = 'qwen2.5-coder:7b';
+  assert('LocalLLM.pickModel: an explicit user override beats the preference order',
+    LocalLLM.pickModel(['qwen2.5:14b', 'qwen2.5-coder:7b']) === 'qwen2.5-coder:7b');
+
+  LocalLLM.modelOverride = 'qwen2.5:70b';
+  assert('LocalLLM.pickModel: an override naming a model that is NOT installed is ignored, not obeyed into a dead end',
+    LocalLLM.pickModel(['qwen2.5:14b']) === 'qwen2.5:14b');
+
+  LocalLLM.modelOverride = savedOverride;
+})();
+
 /* ================= LocalLLM: route-don't-answer containment ================= */
 /* The whole safety case rests on one property: nothing the model emits
    can become a displayed fact. It may return an intent ID (whose answer
