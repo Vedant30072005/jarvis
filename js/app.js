@@ -551,8 +551,20 @@ const App = {
     const h = new Date().getHours();
     document.getElementById('greetLine').textContent =
       (h < 5 ? 'Late night ops, Sir.' : h < 12 ? 'Good morning, Sir.' : h < 17 ? 'Good afternoon, Sir.' : 'Good evening, Sir.');
+    // Say WHAT was analysed, not just how much. "32 signals analysed across
+    // government, foreign and market wires" is a false claim when every one
+    // of those 32 is an invented demo headline — the sentence describes real
+    // reporting that never happened. The corpus type leads the sentence so it
+    // cannot be skimmed past.
+    const liveCount = Engine.items.filter(i => i.live).length;
+    const corpus = liveCount === 0
+      ? 'SIMULATED corpus (no real wires fetched) — '
+      : liveCount < st.signals
+        ? `${liveCount} of ${st.signals} signals are real wires, the rest simulated — `
+        : '';
     document.getElementById('greetSub').textContent =
-      `${st.signals} signals analysed across government, foreign and market wires · ${st.patterns} active patterns · ` +
+      corpus +
+      `${st.signals} signals analysed · ${st.patterns} active patterns · ` +
       (st.topSector ? `heaviest capital gravity: ${st.topSector.label}.` : 'awaiting flow data.');
 
     const chips = document.getElementById('greetChips');
@@ -773,11 +785,13 @@ const App = {
     const CAT = { gov:['gov','GOV'], global:['global','FOREIGN'], markets:['','MARKETS'], corporate:['','CORPORATE'] };
     const card = (i, n) => `
       <article class="intel-card glass tilt sheen reveal" style="--d:${Math.min(n*40, 400)}ms">
-        <span class="grade-badge grade-${i.grade.toLowerCase()}" title="Evidence grade ${i.grade}: ${{A:'official/confirmed',B:'multi-source corroborated',C:'single-source claim',D:'hype-flagged'}[i.grade]}">${i.grade}</span>
+        <span class="grade-badge grade-${i.grade.toLowerCase()}" title="Evidence grade ${i.grade}: ${{A:'official/confirmed',B:'multi-source corroborated',C:'single-source claim',D:'hype-flagged'}[i.grade]}${i.live ? '' : ' — NOTE: graded against SIMULATED data. The grade describes how the engine scored an invented item; it is not evidence about the real world.'}">${i.grade}</span>
         <div class="ic-top">
           <span class="src-chip ${CAT[i.cat]?.[0] || ''}">${CAT[i.cat]?.[1] || i.cat.toUpperCase()}</span>
           <span class="src-chip" style="color:var(--txt-2);border-color:var(--glass-line-soft);background:transparent">${U.esc(i.s)}</span>
-          ${i.live ? '<span class="src-chip" style="color:var(--green);border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.07)">LIVE</span>' : ''}
+          ${i.live
+            ? '<span class="src-chip" style="color:var(--green);border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.07)">LIVE</span>'
+            : `<span class="src-chip" style="color:var(--amber,#bd8a16);border-color:rgba(189,138,22,.45);background:rgba(189,138,22,.10);font-weight:700" title="INVENTED DEMONSTRATION DATA. This headline was never published — the source name, the figures and the grade below are all fabricated to exercise the engine. Click FETCH LIVE for real wires.">SIMULATED</span>`}
           ${Store.isNew(i) ? '<span class="src-chip" style="color:var(--gold);border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.08)" title="First time this signal has been archived">NEW</span>' : ''}
           ${i.confirmed ? `<span class="src-chip confirmed-badge" title="Same story from ${i.groupSources.length} distinct sources">CONFIRMED ×${i.groupSize}</span>` : ''}
           ${i.hype ? `<span class="src-chip hype-badge" title="WHO BENEFITS FROM YOU BELIEVING THIS? Hedge/superlative/unnamed-sourcing/untiered-outlet heuristics (score ${i.hypeScore}/100). Excluded from flows &amp; ideas.">⚠ HYPE</span>` : ''}

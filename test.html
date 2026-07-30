@@ -2098,6 +2098,37 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
       return open === 20000 && shut === 300000; })());
 })();
 
+/* ================= corpus honesty: simulated data must announce itself ================= */
+/* The most serious honesty defect this app could have is not a wrong
+   number — it is an INVENTED headline wearing the costume of verified
+   intelligence (source name, evidence grade, "CONFIRMED x2"). Momentum
+   maths over a demo corpus is arithmetically correct and epistemically
+   worthless; every answer built on it has to say so. */
+(function(){
+  const savedItems = Engine.items;
+
+  Engine.items = [
+    { t:'fake A', s:'PIB', senti:'bull', impact:50, sectors:['defence'], hype:false, entities:[], live:false },
+    { t:'fake B', s:'RBI', senti:'bear', impact:40, sectors:['banks'],   hype:false, entities:[], live:false }
+  ];
+  assert('Brain.corpusNote: an all-simulated corpus is flagged as invented, in the answer itself',
+    /SIMULATED/.test(Brain.corpusNote()) && /not real reporting/.test(Brain.corpusNote()), Brain.corpusNote());
+
+  Engine.items[0].live = true;
+  assert('Brain.corpusNote: a MIXED corpus reports the real/simulated split rather than rounding to "live"',
+    /1 of 2/.test(Brain.corpusNote()), Brain.corpusNote());
+
+  Engine.items.forEach(i => { i.live = true; });
+  assert('Brain.corpusNote: a fully live corpus adds no warning (the notice must mean something when it appears)',
+    Brain.corpusNote() === '', JSON.stringify(Brain.corpusNote()));
+
+  Engine.items = [];
+  assert('Brain.corpusNote: an empty corpus is silent, not falsely reassuring',
+    Brain.corpusNote() === '');
+
+  Engine.items = savedItems;
+})();
+
 /* ================= LocalLLM: model resolution ================= */
 /* Regression for a bug that shipped in the first cut of local-llm.js: it
    hardcoded MODEL:'qwen2.5:14b' and probed with an EXACT name match, so on

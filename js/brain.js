@@ -369,6 +369,24 @@ const Brain = {
 
   _sectorLabel(key){ return JDATA.SECTORS[key]?.label || key; },
 
+  /** Appended to any answer that cites the signal corpus. Momentum
+   *  scores, source counts and bull/bear splits are real ARITHMETIC over
+   *  whatever is loaded — but when the loaded corpus is invented demo
+   *  data, quoting "momentum 100/100 across 14 sources" as if it
+   *  described the world is exactly the kind of confident-sounding
+   *  falsehood this brain exists to refuse. The maths is honest; the
+   *  subject matter has to be labelled.
+   *  @returns {string} '' when the corpus is fully live */
+  corpusNote(){
+    const total = Engine.items.length;
+    if (!total) return '';
+    const live = Engine.items.filter(i => i.live).length;
+    if (live === total) return '';
+    return live === 0
+      ? `\n<span style="color:var(--amber,#bd8a16);font-size:.72rem">⚠ Computed over SIMULATED headlines — invented demo data, not real reporting. FETCH LIVE for real wires.</span>`
+      : `\n<span style="color:var(--amber,#bd8a16);font-size:.72rem">⚠ Mixed corpus: ${live} of ${total} signals are real wires, the rest simulated.</span>`;
+  },
+
   /* ---------------- intent grammar (specific → general) ---------------- */
 
   /** @type {Array<{id:string, rx:RegExp, answer:(q:string)=>{text:string, goto?:string}}>} */
@@ -434,7 +452,7 @@ const Brain = {
           : '▸ Nothing on the board yet — run FETCH LIVE in Intel Feed for today\'s wires.';
 
         return {
-          text: `${levels}\n<span style="color:var(--txt-3);font-size:.72rem">${U.esc(Market.session().label)} · oldest index print ${U.esc(Market.fmtAge(nseAge))} old${stamp ? ` · fetched ${U.esc(stamp)}` : ''}</span>\n\nHighest-impact signals on the board right now:\n${sig}\n\n<span style="color:var(--txt-3);font-size:.72rem">I can show you what moved and what was reported — I can't prove which caused which. No single headline "explains" an index move, and I won't pretend otherwise.</span>`,
+          text: `${levels}\n<span style="color:var(--txt-3);font-size:.72rem">${U.esc(Market.session().label)} · oldest index print ${U.esc(Market.fmtAge(nseAge))} old${stamp ? ` · fetched ${U.esc(stamp)}` : ''}</span>\n\nHighest-impact signals on the board right now:\n${sig}${Brain.corpusNote()}\n\n<span style="color:var(--txt-3);font-size:.72rem">I can show you what moved and what was reported — I can't prove which caused which. No single headline "explains" an index move, and I won't pretend otherwise.</span>`,
           goto: 'intel'
         };
       }
@@ -702,7 +720,7 @@ const Brain = {
       answer(){
         const top = [...Engine.clusters].sort((a, b) => b.score - a.score)[0];
         if (!top) return { text: 'Nothing hot on the board yet, Sir — feed me signals first.' };
-        return { text: `<b>${U.esc(top.label)}</b> — momentum ${top.score}/100, ${top.items.length} signals across ${top.sources} sources. [→ Patterns]`, goto: 'patterns' };
+        return { text: `<b>${U.esc(top.label)}</b> — momentum ${top.score}/100, ${top.items.length} signals across ${top.sources} sources. [→ Patterns]` + Brain.corpusNote(), goto: 'patterns' };
       }
     },
     {
@@ -741,7 +759,7 @@ const Brain = {
         const contested = Engine.clusters.filter(c => c.bull > 0 && c.bear > 0)
           .sort((a, b) => Math.min(b.bull, b.bear) - Math.min(a.bull, a.bear))[0];
         if (!contested) return { text: 'No genuinely contested sectors right now — coverage is one-sided across the board.' };
-        return { text: `<b>${U.esc(contested.label)}</b> is contested: ${contested.bull} bullish vs ${contested.bear} bearish signals active at once. [→ Patterns, Cross-Currents]`, goto: 'patterns' };
+        return { text: `<b>${U.esc(contested.label)}</b> is contested: ${contested.bull} bullish vs ${contested.bear} bearish signals active at once. [→ Patterns, Cross-Currents]` + Brain.corpusNote(), goto: 'patterns' };
       }
     },
     {

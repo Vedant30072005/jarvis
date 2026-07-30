@@ -1770,3 +1770,48 @@ build would give, which is the empirical case for `qwen2.5:14b`.
 test.html: 320/320 (7 new — including a direct regression for the
 exact-name bug: a machine holding only the coder build must resolve it,
 not disable itself).
+
+**2026-07-29 · Anti-fraud: simulated data must announce itself** — Asked
+to make sure JARVIS "is not a fraud". Audited for the precise failure
+that word names: FABRICATED DATA WEARING THE COSTUME OF VERIFIED
+INTELLIGENCE. Found it, and it was the default state of the app.
+
+The demo corpus ships 32 invented headlines carrying real-sounding
+attributions — "PIB Delhi", "Ministry of Finance", "RBI Bulletin",
+"Exchange Filing" — with specific rupee figures. Each rendered with an
+evidence-grade badge (A = "official/confirmed"), a NEW chip, and
+CONFIRMED ×2. The ONLY thing distinguishing a real wire from an invented
+one was that real items got a green LIVE chip and fabricated ones got
+nothing. Absence of a badge is not a warning: nobody reads a missing
+chip as "this was invented". A glance at the Intel Feed said HAL had
+signed a $3.1bn export deal, graded A, confirmed by two sources. None of
+it happened.
+
+Fixed at every layer where the claim surfaces:
+- Signal cards now carry an explicit amber SIMULATED chip, with a
+  tooltip stating the headline was never published and the source name,
+  figures and grade are all fabricated.
+- The grade badge's own tooltip is qualified on simulated items — a
+  badge reading "official/confirmed" over invented data is itself a
+  false statement, so it now says the grade describes how the engine
+  scored an invented item and is not evidence about the world.
+- The Command Center greeting LEADS with corpus type ("SIMULATED corpus
+  (no real wires fetched) — ...") instead of asserting "32 signals
+  analysed across government, foreign and market wires", which describes
+  reporting that never occurred. A mixed corpus reports the split.
+- `Brain.corpusNote()` appends the same warning to every chat answer
+  computed over signals. The momentum arithmetic is correct; the subject
+  matter is invented, and quoting "momentum 100/100 across 14 sources"
+  unqualified is the conversational form of the same lie. Silent when
+  the corpus is fully live, so the notice means something when it shows.
+
+Verified live: the HAL card renders CORPORATE / Exchange Filing /
+SIMULATED / NEW / CONFIRMED ×2 — the warning sits beside the
+authority markers rather than replacing them, which is the honest
+presentation. Chat: "what's hot" → "Infrastructure — momentum 100/100,
+15 signals across 14 sources ⚠ Computed over SIMULATED headlines —
+invented demo data, not real reporting."
+
+test.html: 324/324 (4 new — all-simulated flagged, mixed corpus reports
+the split, fully-live stays silent, empty corpus is silent rather than
+falsely reassuring).
