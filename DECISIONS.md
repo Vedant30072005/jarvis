@@ -1815,3 +1815,27 @@ invented demo data, not real reporting."
 test.html: 324/324 (4 new — all-simulated flagged, mixed corpus reports
 the split, fully-live stays silent, empty corpus is silent rather than
 falsely reassuring).
+
+**2026-07-29 · Anti-fraud part 2: stop animating fabricated prices** —
+The tape's simulated fallback random-walked every instrument every 3s
+(`(Math.random() - .485) * .1`). A guard already prevented nudging a
+real quote, so the numbers were never *mixed* — but a fabricated NIFTY
+level ticking up and down is read by every human as a live feed. Motion
+is the strongest liveness cue a price display has, stronger than any
+badge beside it, so the drift actively dressed invented numbers as a
+working market connection while the badge said SIM FEED.
+
+Simulated values now sit FROZEN at their seed and the change column
+reads a truthful 0.00% rather than an invented delta. Added a per-cell
+"SIM" tag next to the change figure: opacity is a style cue people stop
+noticing within a day, a word is not, and reading the tape should not
+require hovering to learn the number is invented.
+
+Verified both paths live. Relay down: values identical across 7s (old
+drift fired at 3s), every cell tagged SIM, badge SIM FEED. Relay up:
+real prints, no SIM tag, undimmed, badge "LIVE · 2h" — and that 2h is
+correct rather than a fault, which the tooltip proves by naming the
+cause: IST 17:27, MARKET CLOSED (15:30 close), refresh backed off to
+300s because a closed market's last print cannot move. No amber warning
+fired, which is the intended behaviour: aging prints are only suspicious
+while the market is open.

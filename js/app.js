@@ -441,7 +441,10 @@ const App = {
         t.v.toLocaleString('en-IN', { minimumFractionDigits: t.dec, maximumFractionDigits: t.dec });
       const td = cellEl.querySelector('.td');
       td.className = 'td ' + (t.d >= 0 ? 'up' : 'dn');
-      td.textContent = `${t.d >= 0 ? '▲' : '▼'}${Math.abs(t.d).toFixed(2)}%`;
+      // A visible "SIM" beats dimming alone: opacity is a style cue people
+      // stop noticing, a word is not. Reading the tape must not require
+      // hovering to learn the number is invented.
+      td.textContent = `${t.d >= 0 ? '▲' : '▼'}${Math.abs(t.d).toFixed(2)}%` + (t.live ? '' : ' SIM');
       // Per-instrument honesty: a cell showing a real quote reads at full
       // strength; one still on its simulated seed is dimmed and says so on
       // hover, so a live tape can never silently carry an invented print.
@@ -497,20 +500,18 @@ const App = {
     // The seeded random walk stays ONLY as the relay-down fallback. It is
     // never applied to a live value: nudging a real quote by Math.random()
     // would turn a true print into a fabricated one.
-    let simTimer = null;
-    const startSim = () => {
-      if (simTimer) return;
-      simTimer = setInterval(() => {
-        data.forEach(t => {
-          if (t.live) return;
-          const step = (Math.random() - .485) * .1;
-          t.d = +(t.d + step).toFixed(2);
-          t.v = t.v * (1 + step / 100);
-        });
-        repaint(true);
-      }, 3000);
-    };
-    const stopSim = () => { if (simTimer){ clearInterval(simTimer); simTimer = null; } };
+    // Deliberately NOT animated any more. A fabricated NIFTY level that
+    // ticks up and down every 3s is read by every human as a live feed —
+    // motion is the strongest liveness cue a price display has, stronger
+    // than any badge sitting next to it. The old random walk therefore
+    // dressed invented numbers as a working market connection, which is
+    // the exact deception this pass exists to remove. Simulated values
+    // now sit FROZEN at their seed: a static price plus the dimmed cell,
+    // the per-cell SIM tag and the SIM FEED badge all agree that nothing
+    // is connected. Kept as named no-ops so the live/sim switching below
+    // still reads clearly.
+    const startSim = () => { repaint(false); };
+    const stopSim = () => {};
 
     const refresh = async () => {
       const n = await Market.refresh();
