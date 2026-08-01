@@ -122,7 +122,8 @@ const Engine = {
     // overwrites `impact` with the corpus percentile after all items exist,
     // keeping `impactBase`/`impactRaw` around for archive/tooltip use.
     return { ...raw, entities, sectors: [...sectors], senti, impact: impactBase, impactBase, impactRaw: impactBase,
-      amountCr, flow, live: !!raw.live, hype, hypeScore, qMark, gid: null, confirmed: false };
+      amountCr, flow, live: !!raw.live, pub: Number.isFinite(raw.pub) ? raw.pub : null,
+      hype, hypeScore, qMark, gid: null, confirmed: false };
   },
 
   /* Everything normalizes to crore INR before any summation — flow math on

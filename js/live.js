@@ -95,8 +95,9 @@ const Live = {
       try {
         const j = JSON.parse(text);
         for (const it of (j.items || []).slice(0, 8)){
+          const pubMs = new Date(it.pubDate).getTime();
           items.push(this.mkItem(it.title, sourceOverride || it.author || j.feed?.title || 'News Wire',
-            (now - new Date(it.pubDate).getTime()) / 36e5, it.description, it.link, cat));
+            (now - pubMs) / 36e5, it.description, it.link, cat, pubMs));
         }
         return items;
       } catch(e){ return []; }
@@ -108,12 +109,18 @@ const Live = {
       const pub = new Date(it.querySelector('pubDate')?.textContent || now).getTime();
       const desc = it.querySelector('description')?.textContent || '';
       const link = it.querySelector('link')?.textContent || '';
-      items.push(this.mkItem(title, src, (now - pub) / 36e5, desc, link, cat));
+      items.push(this.mkItem(title, src, (now - pub) / 36e5, desc, link, cat, pub));
     }
     return items;
   },
 
-  mkItem(title, src, hoursAgo, desc, link, cat){
+  /** @param {number} [pubMs] the wire's OWN publication timestamp. Kept
+   *  alongside `h` (hours-ago) rather than derived back from it: "3h ago"
+   *  is relative to page load and silently rots as a tab stays open,
+   *  while a publication date is a fact about the article that never
+   *  changes. Art. 4 wants "as of when" answerable from the source, not
+   *  from how long the reader has been sitting there. */
+  mkItem(title, src, hoursAgo, desc, link, cat, pubMs){
     const clean = s => { const d = document.createElement('div'); d.innerHTML = s; return (d.textContent || '').trim(); };
     let t = clean(title);
     // Google News suffixes " - Source"; strip it
@@ -122,7 +129,9 @@ const Live = {
     return {
       id: U.uid(), cat, s: String(src).slice(0, 34), t,
       b: clean(desc).replace(/https?:\S+/g, '').slice(0, 220),
-      h: Math.max(.2, hoursAgo || 1), url: /^https?:\/\//.test(link) ? link : null, live: true
+      h: Math.max(.2, hoursAgo || 1),
+      pub: Number.isFinite(pubMs) ? pubMs : null,
+      url: /^https?:\/\//.test(link) ? link : null, live: true
     };
   },
 

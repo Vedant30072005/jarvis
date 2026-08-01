@@ -1948,3 +1948,43 @@ there; verified the pattern rather than assumed it.
 
 test.html: 329/329 (unchanged — this pass is behavioural/boot-sequence,
 not new pure-logic surface).
+
+**2026-07-29 · Fabricated signals removed from the default boot; real
+publication dates shown** — The human's explicit call, stated twice and
+with the trade-off understood: an honest blank screen beats invented
+headlines, even labelled ones. Previous passes made fabrication
+*visible*; this one makes it *absent by default*.
+
+`App.init()` booted `Engine.run(JDATA.FEED)` unconditionally — 32
+fabricated headlines were the first thing every session showed. It now
+boots `Engine.run(demoRequested() ? JDATA.FEED : [])`. The demo corpus
+still exists but is opt-in via `?demo=true` (kept deliberately: it lets
+the engine be demonstrated offline and screenshotted without a network,
+which has real value — it just must never be the default). The check is
+synchronous and read before any await, so there is no window in which
+invented headlines reach someone who did not ask for them.
+
+Empty is now a legitimate expected state rather than a failure, so it
+gets honest copy instead of "0 signals analysed": the Intel Feed says
+"No real wires loaded yet — this screen stays empty rather than showing
+invented headlines", with a FETCH LIVE button. Distinguished from the
+pre-existing "no signals match / clear filters" state, which is a lie
+when the corpus itself is empty — it implies data exists behind a
+filter.
+
+Publication dates (requested): `Live.mkItem` was DISCARDING the wire's
+own timestamp, keeping only `h` (hours-ago). Relative age is computed
+against page load and silently rots as a tab stays open; a publication
+date is a fact about the article that never changes — Art. 4 wants
+"as of when" answerable from the source, not from how long the reader
+has been sitting there. `pub` (epoch ms) is now carried through
+mkItem → analyzeItem → the card, rendering as "18h ago · 31 Jul" with a
+full "Published Friday, 31 July 2026 at 7:35 pm" tooltip. Items whose
+feed publishes no timestamp say so rather than having one invented.
+
+Verified live: 85 real signals on cold boot, 77 of 85 carrying genuine
+publication dates (the 8 without are feeds that omit pubDate — honestly
+labelled, not backfilled). Forced-empty render confirmed to produce the
+new honest copy and a working fetch button.
+
+test.html: 329/329.

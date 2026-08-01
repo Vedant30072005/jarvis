@@ -39,7 +39,14 @@ const App = {
     Engine.USD_INR = this.settings.usdInr || 85.5; // ORD-205
     LocalLLM.enabled = !!this.settings.localLlm;    // ORD-1511 seam — opt-in only
     Portfolio.load();
-    Engine.run(JDATA.FEED);
+    // Boot EMPTY, not with the fabricated corpus. The human's explicit
+    // decision (2026-07-29): an honest blank screen is preferable to
+    // invented headlines, even labelled ones. JDATA.FEED still exists but
+    // is now opt-in only — `?demo=true`, for screenshots and for showing
+    // the engine off without a network. Real wires arrive moments later
+    // via the auto-uplink at the end of boot; until they do, the views
+    // render their honest empty states rather than fake numbers.
+    Engine.run(this.demoRequested() ? JDATA.FEED : []);
 
     document.body.classList.toggle('fx-off', !!this.settings.fxOff);
     document.body.classList.toggle('privacy-blur', !!this.settings.privacyBlur);
@@ -576,14 +583,18 @@ const App = {
     // cannot be skimmed past.
     const liveCount = Engine.items.filter(i => i.live).length;
     const corpus = liveCount === 0
-      ? 'SIMULATED corpus (no real wires fetched) — '
+      ? 'SIMULATED corpus (demo mode) — '
       : liveCount < st.signals
         ? `${liveCount} of ${st.signals} signals are real wires, the rest simulated — `
         : '';
-    document.getElementById('greetSub').textContent =
-      corpus +
-      `${st.signals} signals analysed · ${st.patterns} active patterns · ` +
-      (st.topSector ? `heaviest capital gravity: ${st.topSector.label}.` : 'awaiting flow data.');
+    // Empty is now a legitimate, expected state (boot loads nothing until
+    // real wires arrive), so it gets its own honest sentence rather than
+    // "0 signals analysed", which reads like a failure.
+    document.getElementById('greetSub').textContent = st.signals === 0
+      ? 'No wires loaded yet — fetching live news. Nothing invented is shown while this is empty.'
+      : corpus +
+        `${st.signals} signals analysed · ${st.patterns} active patterns · ` +
+        (st.topSector ? `heaviest capital gravity: ${st.topSector.label}.` : 'awaiting flow data.');
 
     const chips = document.getElementById('greetChips');
     chips.innerHTML = '';
@@ -993,7 +1004,7 @@ const App = {
           ${i.confirmed ? `<span class="src-chip confirmed-badge" title="Same story from ${i.groupSources.length} distinct sources">CONFIRMED ×${i.groupSize}</span>` : ''}
           ${i.hype ? `<span class="src-chip hype-badge" title="WHO BENEFITS FROM YOU BELIEVING THIS? Hedge/superlative/unnamed-sourcing/untiered-outlet heuristics (score ${i.hypeScore}/100). Excluded from flows &amp; ideas.">⚠ HYPE</span>` : ''}
           ${i.novel === false ? '<span class="echo-chip" title="Closely echoes something archived around yesterday — same underlying story, reworded">↺ ECHO</span>' : ''}
-          <span class="when">${U.ago(i.h)}</span>
+          <span class="when" title="${i.pub ? 'Published ' + U.esc(new Date(i.pub).toLocaleString('en-IN', { dateStyle:'full', timeStyle:'short' })) : 'No publication timestamp on this item — age is relative to when it was ingested.'}">${U.ago(i.h)}${i.pub ? ` · ${U.esc(new Date(i.pub).toLocaleDateString('en-IN', { day:'2-digit', month:'short' }))}` : ''}</span>
         </div>
         <h4 class="ic-title">${i.url ? `<a href="${U.esc(i.url)}" target="_blank" rel="noopener noreferrer" style="color:inherit">${U.esc(i.t)}</a>` : U.esc(i.t)}</h4>
         ${i.b ? `<p class="ic-sum">${U.esc(i.b)}</p>` : ''}
@@ -1010,10 +1021,27 @@ const App = {
         </div>
       </article>`;
 
-    document.getElementById('intelList').innerHTML = shown.map(card).join('') || `<div class="empty-state glass" style="padding:40px">
+    // Two genuinely different empty states. "No signals match / clear
+    // filters" is a lie when the corpus itself is empty — it implies data
+    // exists and a filter is hiding it. With nothing loaded, say that, and
+    // point at the actual remedy.
+    const corpusEmpty = Engine.items.length === 0;
+    document.getElementById('intelList').innerHTML = shown.map(card).join('') || (corpusEmpty
+      ? `<div class="empty-state glass" style="padding:40px;text-align:center">
+        <p style="font-size:1.05rem;margin-bottom:6px">No real wires loaded yet, Sir.</p>
+        <p style="color:var(--txt-3);font-size:.82rem;max-width:46ch;margin:0 auto 14px">
+          This screen stays empty rather than showing invented headlines. Live news is
+          fetched automatically at startup — if nothing arrived, the uplink is unreachable.
+          Run <code>node relay.js</code> for the reliable path.
+        </p>
+        <button class="btn" id="btnEmptyFetch">FETCH LIVE NEWS</button>
+      </div>`
+      : `<div class="empty-state glass" style="padding:40px">
         <p>No signals match, Sir.</p>
         <button class="btn btn-ghost" data-clear-filters>CLEAR FILTERS</button>
-      </div>`;
+      </div>`);
+    const emptyFetch = document.getElementById('btnEmptyFetch');
+    if (emptyFetch) emptyFetch.addEventListener('click', () => this.fetchLive());
 
     // ORD-1701: filtered items stay auditable in a collapsible quarantine list,
     // never silently dropped — filters must be checkable (Art. 5/6).
@@ -1488,6 +1516,15 @@ const App = {
     Portfolio.loadDemo();
     Schema.save(Ledger.KEY, Ledger.VERSION, JDATA.DEMO_LEDGER.map(e => ({ ...e, importedAt: Date.now() })));
     this.renderPortfolio();
+  },
+
+  /** Is this an explicit demo session? The ONLY thing that may put
+   *  fabricated signals on screen. Read at boot (before any await) so the
+   *  very first paint is already honest — there is no window in which
+   *  invented headlines are shown to someone who did not ask for them. */
+  demoRequested(){
+    try { return new URLSearchParams(location.search).get('demo') === 'true'; }
+    catch(e){ return false; }
   },
 
   /** `?demo=true` at boot: stages the demo data automatically. Confirms
