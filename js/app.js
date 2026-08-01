@@ -772,6 +772,19 @@ const App = {
   stockRegion: 'india',
   stockSearchQuery: '',
   _stockQuotesCache: {},
+  /** symbols a fetch has already been ATTEMPTED for. Separate from the
+   *  cache because the relay answers an unreachable symbol with `null`,
+   *  and `!cache[sym]` cannot tell "never asked" from "asked, got nothing"
+   *  — without this, every dud symbol is re-requested on every render. */
+  _stockTried: {},
+  /** regions whose basket has been pulled at least once this session. The
+   *  inactive region's breadth tile is filled from a quiet background pull
+   *  so both markets can be read at a glance, but only ONCE per session —
+   *  Art. 3, nothing refreshes itself on a timer. */
+  _stockRegionsPulled: {},
+  /** region → the in-flight (or settled) pull promise, so two callers never
+   *  race the same 50 symbols. @type {Object<string, Promise<void>>} */
+  _stockPulls: {},
 
   wireStocks(){
     const regionToggle = document.getElementById('stockRegionToggle');
@@ -804,6 +817,9 @@ const App = {
     if (btnRefresh){
       btnRefresh.addEventListener('click', () => {
         this._stockQuotesCache = {};
+        this._stockTried = {};
+        this._stockRegionsPulled = {};
+        this._stockPulls = {};
         this.renderStocks(true);
       });
     }
@@ -820,113 +836,247 @@ const App = {
     }
   },
 
+  /** One basket entry + whatever quote we hold for it, or an explicit
+   *  no-quote row. Never invents a price for a symbol the relay could not
+   *  reach. @param {'india'|'us'} region */
+  stockRows(region){
+    return Market.basket(region).map(item => {
+      const q = this._stockQuotesCache[item.sym];
+      const live = !!q && typeof q.price === 'number' && isFinite(q.price);
+      return {
+        sym: item.sym,
+        label: item.label,
+        name: (live && q.shortName) || item.name,
+        price: live ? q.price : null,
+        changePct: live && typeof q.changePct === 'number' ? q.changePct : null,
+        currency: (live && q.currency) || (item.sym.endsWith('.NS') ? 'INR' : 'USD'),
+        live,
+        quoteTime: live ? (q.quoteTime || q.ts || null) : null,
+        dayHigh: live ? q.dayHigh : null,
+        dayLow: live ? q.dayLow : null,
+        tried: !!this._stockTried[item.sym]
+      };
+    });
+  },
+
+  /** Pull every symbol in a region's basket that has not been asked for yet
+   *  (or all of them on a forced refresh). De-duplicated by region: the
+   *  background pull for the inactive region and a user toggling INTO that
+   *  region mid-flight must share one request, or the toggle renders an
+   *  all-empty grid while the answer is already on the wire.
+   *  @param {'india'|'us'} region @returns {Promise<void>} */
+  pullRegion(region, forceRefresh = false){
+    if (!forceRefresh && this._stockPulls[region]) return this._stockPulls[region];
+    const syms = Market.basket(region).map(s => s.sym);
+    const missing = forceRefresh ? syms : syms.filter(s => !this._stockTried[s]);
+    const p = (async () => {
+      if (missing.length){
+        const fetched = await Market.fetchQuotes(missing);
+        Object.assign(this._stockQuotesCache, fetched);
+        for (const s of missing) this._stockTried[s] = true;
+      }
+      this._stockRegionsPulled[region] = true;
+    })();
+    this._stockPulls[region] = p;
+    return p;
+  },
+
   async renderStocks(forceRefresh = false){
     const container = document.getElementById('stockCardsGrid');
     if (!container) return;
 
-    let baseList = this.stockRegion === 'india' ? Market.INDIAN_STOCKS : Market.US_STOCKS;
-    
-    let symbolsToFetch = baseList.map(s => s.sym);
-    if (this.stockSearchQuery) {
-      const isCustomSymbol = !baseList.some(s => s.sym.toLowerCase().includes(this.stockSearchQuery) || s.label.toLowerCase().includes(this.stockSearchQuery) || s.name.toLowerCase().includes(this.stockSearchQuery));
-      if (isCustomSymbol && this.stockSearchQuery.length >= 2) {
-        const customSym = this.stockSearchQuery.toUpperCase();
-        if (!symbolsToFetch.includes(customSym)) symbolsToFetch.unshift(customSym);
-        const customSymNs = customSym + '.NS';
-        if (!symbolsToFetch.includes(customSymNs)) symbolsToFetch.unshift(customSymNs);
-      }
+    const region = this.stockRegion;
+    const query = this.stockSearchQuery;
+
+    if (!this._stockRegionsPulled[region] || forceRefresh){
+      container.innerHTML = `<p class="empty-state" style="grid-column:1/-1">Pulling ${Market.basket(region).length} quotes…</p>`;
     }
+    await this.pullRegion(region, forceRefresh);
+    if (this.stockRegion !== region) return; // toggled mid-flight — that render owns the grid now
 
-    const missingSymbols = symbolsToFetch.filter(s => !this._stockQuotesCache[s] || forceRefresh);
-    if (missingSymbols.length > 0) {
-      const fetched = await Market.fetchQuotes(missingSymbols);
-      Object.assign(this._stockQuotesCache, fetched);
-    }
-
-    let items = baseList.map(item => {
-      const q = this._stockQuotesCache[item.sym];
-      return {
-        sym: item.sym,
-        label: item.label,
-        name: q?.shortName || item.name,
-        price: q?.price ?? item.fallbackPrice,
-        changePct: q?.changePct ?? item.fallbackChange,
-        currency: q?.currency || (item.sym.endsWith('.NS') ? 'INR' : 'USD'),
-        live: !!q && typeof q.price === 'number',
-        dayHigh: q?.dayHigh,
-        dayLow: q?.dayLow
-      };
-    });
-
-    if (this.stockSearchQuery) {
-      const query = this.stockSearchQuery.toLowerCase();
-      let filtered = items.filter(i => i.sym.toLowerCase().includes(query) || i.label.toLowerCase().includes(query) || i.name.toLowerCase().includes(query));
-      
-      if (filtered.length === 0) {
-        const customSym = this.stockSearchQuery.toUpperCase();
-        const customQuote = this._stockQuotesCache[customSym] || this._stockQuotesCache[customSym + '.NS'];
-        if (customQuote && typeof customQuote.price === 'number') {
-          filtered = [{
-            sym: customSym,
-            label: customSym,
-            name: customQuote.shortName || customSym,
-            price: customQuote.price,
-            changePct: customQuote.changePct,
-            currency: customQuote.currency || 'USD',
-            live: true,
-            dayHigh: customQuote.dayHigh,
-            dayLow: customQuote.dayLow
-          }];
+    /* A search string that matches nothing in the basket is treated as a
+       symbol the user wants added. Both the bare ticker and its .NS form
+       are tried, since "TATAPOWER" and "AAPL" are both plausible inputs. */
+    let customRow = null;
+    const matchesBasket = r => r.sym.toLowerCase().includes(query) || r.label.toLowerCase().includes(query) || r.name.toLowerCase().includes(query);
+    let rows = this.stockRows(region);
+    if (query){
+      const hits = rows.filter(matchesBasket);
+      if (!hits.length && query.length >= 2){
+        const upper = query.toUpperCase();
+        const candidates = [upper, upper + '.NS'].filter(s => !this._stockTried[s]);
+        if (candidates.length){
+          Object.assign(this._stockQuotesCache, await Market.fetchQuotes(candidates));
+          for (const s of candidates) this._stockTried[s] = true;
+        }
+        const q = this._stockQuotesCache[upper] || this._stockQuotesCache[upper + '.NS'];
+        if (q && typeof q.price === 'number'){
+          const sym = this._stockQuotesCache[upper] ? upper : upper + '.NS';
+          customRow = {
+            sym, label: upper, name: q.shortName || upper, price: q.price,
+            changePct: typeof q.changePct === 'number' ? q.changePct : null,
+            currency: q.currency || (sym.endsWith('.NS') ? 'INR' : 'USD'),
+            live: true, quoteTime: q.quoteTime || q.ts || null,
+            dayHigh: q.dayHigh, dayLow: q.dayLow, tried: true
+          };
         }
       }
-      items = filtered;
     }
 
-    if (!items.length) {
+    /* Breadth is always computed on the FULL basket, never on the filtered
+       view — "the market is up 0.8%" must not silently mean "the one stock
+       you searched for is up 0.8%". */
+    this.renderStockBreadth(region);
+
+    const shown = query ? (rows.filter(matchesBasket).concat(customRow ? [customRow] : [])) : rows;
+
+    if (!shown.length){
       container.innerHTML = `
         <div class="empty-state glass" style="padding:24px;grid-column:1/-1;text-align:center">
-          <p style="color:var(--txt-2);font-family:var(--f-mono);font-size:.8rem">No stocks matching "${U.esc(this.stockSearchQuery)}", Sir.</p>
+          <p style="color:var(--txt-2);font-family:var(--f-mono);font-size:.8rem">
+            Nothing in the ${region === 'us' ? 'US' : 'Indian'} basket matches "${U.esc(query)}", Sir — and no live quote came back for it as a symbol either.
+          </p>
         </div>`;
-      return;
+    } else {
+      container.innerHTML = shown.map(stock => this.stockCardHtml(stock)).join('');
     }
 
-    const fmtMoney = (val, curr) => {
-      const symbol = curr === 'INR' ? '₹' : '$';
-      return `${symbol}${val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    };
+    /* Quietly fill the OTHER region's breadth tile once, so both markets
+       read at a glance without a click. Fire-and-forget: it only repaints
+       the tiles, never the grid, and only if the user is still here. */
+    const other = region === 'india' ? 'us' : 'india';
+    if (!this._stockPulls[other]){
+      this.pullRegion(other).then(() => {
+        if (document.getElementById('stockBreadth')) this.renderStockBreadth(this.stockRegion);
+      });
+    }
+  },
 
-    container.innerHTML = items.map(stock => {
-      const isUp = stock.changePct >= 0;
-      const sign = isUp ? '▲ +' : '▼ ';
-      const changeCls = isUp ? 'up' : 'dn';
+  fmtStockMoney(val, curr){
+    return `${curr === 'INR' ? '₹' : '$'}${val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  },
 
+  stockCardHtml(stock){
+    if (!stock.live){
+      /* No fabricated price, no fabricated change, no green/red tint that
+         would imply a direction nobody measured. */
       return `
-        <article class="stock-card glass">
+        <article class="stock-card glass no-quote">
           <div class="stock-card-top">
             <div>
               <div class="stock-sym">${U.esc(stock.label)}</div>
               <div class="stock-name" title="${U.esc(stock.name)}">${U.esc(stock.name)}</div>
             </div>
-            <span class="src-chip ${stock.live ? '' : 'sim'}" style="${stock.live ? 'color:var(--green);border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.07)' : 'color:var(--gold);border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.1)'}">
-              ${stock.live ? 'LIVE' : 'SIM'}
-            </span>
+            <span class="src-chip noq" title="${stock.tried
+              ? 'The quote endpoint returned nothing for this symbol — it is not shown as a price because there is no price to show.'
+              : 'Not fetched yet.'}">NO QUOTE</span>
           </div>
           <div class="stock-price-row">
-            <span class="stock-price">${fmtMoney(stock.price, stock.currency)}</span>
-            <span class="stock-change ${changeCls}">${sign}${Math.abs(stock.changePct).toFixed(2)}%</span>
+            <span class="stock-price muted">—</span>
           </div>
-          ${(stock.dayHigh != null && stock.dayLow != null) ? `
-          <div class="stock-range">
-            <span>LOW: ${fmtMoney(stock.dayLow, stock.currency)}</span>
-            <span>HIGH: ${fmtMoney(stock.dayHigh, stock.currency)}</span>
-          </div>` : ''}
           <div class="stock-card-foot">
-            <button class="link-btn mono" data-analyze-stock="${stock.label}">
-              <svg class="ic"><use href="#i-spark"/></svg> JARVIS, ANALYZE
-            </button>
+            <span class="mono" style="font-size:.6rem;color:var(--txt-3);letter-spacing:.1em">${stock.tried ? 'FEED RETURNED NOTHING' : 'AWAITING FETCH'}</span>
           </div>
         </article>`;
-    }).join('');
+    }
+
+    const isUp = stock.changePct >= 0;
+    const age = stock.quoteTime ? Market.fmtAge(Math.max(0, Math.round((Date.now() - stock.quoteTime) / 1000))) : null;
+    return `
+      <article class="stock-card glass">
+        <div class="stock-card-top">
+          <div>
+            <div class="stock-sym">${U.esc(stock.label)}</div>
+            <div class="stock-name" title="${U.esc(stock.name)}">${U.esc(stock.name)}</div>
+          </div>
+          <span class="src-chip live" title="${age ? `Exchange print ${age} old — no free feed is latency-free.` : 'Live quote.'}">LIVE${age ? ` · ${age}` : ''}</span>
+        </div>
+        <div class="stock-price-row">
+          <span class="stock-price">${this.fmtStockMoney(stock.price, stock.currency)}</span>
+          ${stock.changePct == null ? '' :
+            `<span class="stock-change ${isUp ? 'up' : 'dn'}">${isUp ? '▲ +' : '▼ '}${Math.abs(stock.changePct).toFixed(2)}%</span>`}
+        </div>
+        ${(stock.dayHigh != null && stock.dayLow != null) ? `
+        <div class="stock-range">
+          <span>LOW: ${this.fmtStockMoney(stock.dayLow, stock.currency)}</span>
+          <span>HIGH: ${this.fmtStockMoney(stock.dayHigh, stock.currency)}</span>
+        </div>` : ''}
+        <div class="stock-card-foot">
+          <button class="link-btn mono" data-analyze-stock="${U.esc(stock.label)}">
+            <svg class="ic"><use href="#i-spark"/></svg> JARVIS, ANALYZE
+          </button>
+        </div>
+      </article>`;
+  },
+
+  /** The two market-wide tiles: one per region, both always visible so the
+   *  toggle changes which basket you're READING, not which market exists.
+   *  @param {'india'|'us'} activeRegion */
+  renderStockBreadth(activeRegion){
+    const box = document.getElementById('stockBreadth');
+    if (!box) return;
+    box.innerHTML = [
+      this.breadthTileHtml('india', activeRegion === 'india'),
+      this.breadthTileHtml('us', activeRegion === 'us')
+    ].join('');
+  },
+
+  breadthTileHtml(region, active){
+    const meta = region === 'india'
+      ? { flag: '🇮🇳', name: 'INDIA', basket: 'NIFTY 50 + HAL' }
+      : { flag: '🇺🇸', name: 'US', basket: 'TOP 50 BY WEIGHT' };
+    const rows = this.stockRows(region);
+    const b = Market.breadth(rows);
+    const cls = `breadth-tile${active ? ' is-active' : ''}`;
+
+    if (!b.covered){
+      const pulled = this._stockRegionsPulled[region];
+      return `
+        <article class="${cls} is-empty">
+          <div class="bt-head"><span class="bt-flag">${meta.flag}</span><span class="bt-name">${meta.name}</span>
+            <span class="bt-basket mono">${meta.basket}</span></div>
+          <div class="bt-move none">—</div>
+          <div class="bt-sub">${pulled
+            ? `No quote came back for any of the ${b.tracked} names — the relay is likely down. This tile stays blank rather than showing a made-up market.`
+            : 'Not pulled yet.'}</div>
+        </article>`;
+    }
+
+    const dir = b.avgPct > 0 ? 'up' : b.avgPct < 0 ? 'dn' : 'flat';
+    const arrow = b.avgPct > 0 ? '▲ +' : b.avgPct < 0 ? '▼ ' : '● ';
+    const pct = n => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}%`;
+    const share = n => (100 * n / b.covered).toFixed(1);
+    // stalest print in the basket — pessimistic, same convention as the tape
+    const ages = rows.filter(r => r.live && r.quoteTime).map(r => Math.round((Date.now() - r.quoteTime) / 1000));
+    const stalest = ages.length ? Math.max(...ages) : null;
+    const thin = b.covered < b.tracked * 0.6;
+
+    return `
+      <article class="${cls} ${dir}">
+        <div class="bt-head">
+          <span class="bt-flag">${meta.flag}</span><span class="bt-name">${meta.name}</span>
+          <span class="bt-basket mono">${meta.basket}</span>
+          ${active ? '<span class="bt-active mono">SHOWN BELOW</span>' : ''}
+        </div>
+        <div class="bt-move ${dir}" title="Mean of the day's % change across the ${b.covered} names that returned a live quote. Median ${pct(b.medianPct)} — if the two disagree, one or two big movers are carrying the average.">
+          ${arrow}${Math.abs(b.avgPct).toFixed(2)}%
+        </div>
+        <div class="bt-sub">equal-weighted average · median ${pct(b.medianPct)}</div>
+        <div class="bt-bar" role="img" aria-label="${b.up} advancing, ${b.down} declining, ${b.flat} unchanged">
+          <i class="up" style="width:${share(b.up)}%"></i><i class="flat" style="width:${share(b.flat)}%"></i><i class="dn" style="width:${share(b.down)}%"></i>
+        </div>
+        <div class="bt-counts mono">
+          <span class="up">▲ ${b.up} up</span><span class="dn">▼ ${b.down} down</span>${b.flat ? `<span class="flat">● ${b.flat} flat</span>` : ''}
+        </div>
+        <div class="bt-extremes">
+          <span title="Biggest gainer in this basket">${U.esc(b.best.label)} ${pct(b.best.changePct)}</span>
+          <span title="Biggest loser in this basket">${U.esc(b.worst.label)} ${pct(b.worst.changePct)}</span>
+        </div>
+        <div class="bt-src mono${thin ? ' warn' : ''}">
+          LIVE · ${b.covered} of ${b.tracked} quoted${stalest != null ? ` · stalest print ${Market.fmtAge(stalest)}` : ''}${region === 'india' ? ` · ${Market.session().label}` : ''}
+        </div>
+        <div class="bt-note">Not the ${region === 'india' ? 'Nifty' : 'S&P'} — that index is cap-weighted; this is a plain average of the names in this list, so the two can point opposite ways.</div>
+      </article>`;
   },
 
   /* ================= INTEL FEED ================= */
@@ -1279,7 +1429,45 @@ const App = {
   },
 
   /* ================= FLOWS ================= */
+  /** Union Budget river. Nested inside Money Flow rather than given its
+   *  own nav item — Constitution Art. 8 fixes the sidebar at six views
+   *  forever, and "where the country's rupee goes" belongs beside "where
+   *  the market's rupee goes" anyway. */
+  renderBudget(){
+    const canvas = document.getElementById('budgetRiver');
+    if (!canvas) return;
+
+    const fyEl = document.getElementById('budgetFy');
+    if (fyEl) fyEl.textContent = `FY${Budget.FY}`;
+
+    // Provenance is rendered BEFORE the picture, not tucked under it: the
+    // reader should know these are hand-entered static figures with a
+    // verify link before they start drawing conclusions from the river.
+    const prov = document.getElementById('budgetProvenance');
+    if (prov){
+      const sum = Budget.checksum();
+      prov.innerHTML = U.esc(Budget.provenanceLine()) +
+        ` <a href="${U.esc(Budget.verifyUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan)">verify at indiabudget.gov.in →</a>` +
+        (sum.ok ? '' : ` <span style="color:var(--amber,#bd8a16)">⚠ Percentages total ${sum.sourcesPct}% / ${sum.destinationsPct}%, not 100 — a figure above was mistyped.</span>`);
+    }
+
+    if (this._riverStop) this._riverStop();
+    const river = Charts.budgetRiver(canvas, Budget.sources, Budget.destinations);
+    this._riverStop = river.stop;
+    this._stops.push(river.stop);
+
+    const tb = document.querySelector('#budgetAllocTable tbody');
+    if (tb){
+      tb.innerHTML = Budget.allocations.map(a => `<tr>
+        <td>${U.esc(a.label)}</td>
+        <td class="num mono">${U.fmtCr(a.cr)}</td>
+        <td class="num mono">${(100 * a.cr / Budget.totals.expenditure).toFixed(1)}%</td>
+      </tr>`).join('');
+    }
+  },
+
   renderFlows(){
+    this.renderBudget();
     const sectors = Engine.flowBySector();
     const sources = Engine.flowBySource();
     const total = Engine.totalTracked(); // magnitude KPI (see DECISIONS.md) — always >= 0

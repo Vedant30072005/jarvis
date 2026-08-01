@@ -81,47 +81,202 @@ const Market = {
     } catch(e){ return 0; /* relay down — caller keeps the SIM tape */ }
   },
 
-  /** Default Indian & US stocks list for Live Stocks Monitor */
+  /* ---------------- Live Stocks Monitor baskets ----------------
+
+     Each entry is a SYMBOL and a NAME — nothing more. The earlier
+     12-name version carried `fallbackPrice`/`fallbackChange` seeds so a
+     card could still show a price with the relay down; those are gone.
+     A seeded price is an invented number wearing a quote's costume, and
+     the moment a basket-wide breadth average is computed on top of it,
+     the fabrication stops being one dud card and becomes a false read on
+     the whole market. A card with no quote now says NO QUOTE (Art. 1:
+     truth over delight — an honest gap beats a confident lie). */
+
+  /** NIFTY 50 constituents, plus HAL (carried over from the earlier
+   *  hand-picked list). Symbols are Yahoo's `.NS` NSE tickers. A ticker
+   *  that gets renamed or delisted simply returns no quote and renders as
+   *  such — it never silently becomes a made-up price. */
   INDIAN_STOCKS: [
-    { sym:'RELIANCE.NS', label:'RELIANCE', name:'Reliance Industries', fallbackPrice:3020.50, fallbackChange:1.25 },
-    { sym:'TCS.NS', label:'TCS', name:'Tata Consultancy Services', fallbackPrice:4180.20, fallbackChange:-0.45 },
-    { sym:'HDFCBANK.NS', label:'HDFC BANK', name:'HDFC Bank Ltd', fallbackPrice:1612.80, fallbackChange:0.85 },
-    { sym:'ICICIBANK.NS', label:'ICICI BANK', name:'ICICI Bank Ltd', fallbackPrice:1204.15, fallbackChange:1.10 },
-    { sym:'INFY.NS', label:'INFOSYS', name:'Infosys Ltd', fallbackPrice:1845.60, fallbackChange:-0.20 },
-    { sym:'SBIN.NS', label:'SBI', name:'State Bank of India', fallbackPrice:848.30, fallbackChange:0.65 },
-    { sym:'HAL.NS', label:'HAL', name:'Hindustan Aeronautics', fallbackPrice:4720.00, fallbackChange:2.40 },
-    { sym:'LT.NS', label:'L&T', name:'Larsen & Toubro', fallbackPrice:3640.90, fallbackChange:1.15 },
-    { sym:'M&M.NS', label:'M&M', name:'Mahindra & Mahindra', fallbackPrice:2940.50, fallbackChange:1.15 },
-    { sym:'BHARTIARTL.NS', label:'BHARTI AIRTEL', name:'Bharti Airtel Ltd', fallbackPrice:1480.50, fallbackChange:0.55 },
-    { sym:'AXISBANK.NS', label:'AXIS BANK', name:'Axis Bank Ltd', fallbackPrice:1175.00, fallbackChange:0.30 },
-    { sym:'BAJFINANCE.NS', label:'BAJAJ FINANCE', name:'Bajaj Finance Ltd', fallbackPrice:6920.00, fallbackChange:-1.05 }
+    { sym:'ADANIENT.NS',    label:'ADANI ENT',     name:'Adani Enterprises' },
+    { sym:'ADANIPORTS.NS',  label:'ADANI PORTS',   name:'Adani Ports & SEZ' },
+    { sym:'APOLLOHOSP.NS',  label:'APOLLO HOSP',   name:'Apollo Hospitals' },
+    { sym:'ASIANPAINT.NS',  label:'ASIAN PAINTS',  name:'Asian Paints' },
+    { sym:'AXISBANK.NS',    label:'AXIS BANK',     name:'Axis Bank' },
+    { sym:'BAJAJ-AUTO.NS',  label:'BAJAJ AUTO',    name:'Bajaj Auto' },
+    { sym:'BAJAJFINSV.NS',  label:'BAJAJ FINSERV', name:'Bajaj Finserv' },
+    { sym:'BAJFINANCE.NS',  label:'BAJAJ FINANCE', name:'Bajaj Finance' },
+    { sym:'BEL.NS',         label:'BEL',           name:'Bharat Electronics' },
+    { sym:'BHARTIARTL.NS',  label:'BHARTI AIRTEL', name:'Bharti Airtel' },
+    { sym:'BPCL.NS',        label:'BPCL',          name:'Bharat Petroleum' },
+    { sym:'BRITANNIA.NS',   label:'BRITANNIA',     name:'Britannia Industries' },
+    { sym:'CIPLA.NS',       label:'CIPLA',         name:'Cipla' },
+    { sym:'COALINDIA.NS',   label:'COAL INDIA',    name:'Coal India' },
+    { sym:'DRREDDY.NS',     label:'DR REDDY',      name:"Dr. Reddy's Laboratories" },
+    { sym:'EICHERMOT.NS',   label:'EICHER MOTORS', name:'Eicher Motors' },
+    { sym:'GRASIM.NS',      label:'GRASIM',        name:'Grasim Industries' },
+    { sym:'HAL.NS',         label:'HAL',           name:'Hindustan Aeronautics' },
+    { sym:'HCLTECH.NS',     label:'HCL TECH',      name:'HCL Technologies' },
+    { sym:'HDFCBANK.NS',    label:'HDFC BANK',     name:'HDFC Bank' },
+    { sym:'HDFCLIFE.NS',    label:'HDFC LIFE',     name:'HDFC Life Insurance' },
+    { sym:'HEROMOTOCO.NS',  label:'HERO MOTOCORP', name:'Hero MotoCorp' },
+    { sym:'HINDALCO.NS',    label:'HINDALCO',      name:'Hindalco Industries' },
+    { sym:'HINDUNILVR.NS',  label:'HUL',           name:'Hindustan Unilever' },
+    { sym:'ICICIBANK.NS',   label:'ICICI BANK',    name:'ICICI Bank' },
+    { sym:'INDUSINDBK.NS',  label:'INDUSIND BANK', name:'IndusInd Bank' },
+    { sym:'INFY.NS',        label:'INFOSYS',       name:'Infosys' },
+    { sym:'ITC.NS',         label:'ITC',           name:'ITC Ltd' },
+    { sym:'JSWSTEEL.NS',    label:'JSW STEEL',     name:'JSW Steel' },
+    { sym:'KOTAKBANK.NS',   label:'KOTAK BANK',    name:'Kotak Mahindra Bank' },
+    { sym:'LT.NS',          label:'L&T',           name:'Larsen & Toubro' },
+    { sym:'M&M.NS',         label:'M&M',           name:'Mahindra & Mahindra' },
+    { sym:'MARUTI.NS',      label:'MARUTI',        name:'Maruti Suzuki India' },
+    { sym:'NESTLEIND.NS',   label:'NESTLE INDIA',  name:'Nestle India' },
+    { sym:'NTPC.NS',        label:'NTPC',          name:'NTPC Ltd' },
+    { sym:'ONGC.NS',        label:'ONGC',          name:'Oil & Natural Gas Corp' },
+    { sym:'POWERGRID.NS',   label:'POWER GRID',    name:'Power Grid Corp' },
+    { sym:'RELIANCE.NS',    label:'RELIANCE',      name:'Reliance Industries' },
+    { sym:'SBILIFE.NS',     label:'SBI LIFE',      name:'SBI Life Insurance' },
+    { sym:'SBIN.NS',        label:'SBI',           name:'State Bank of India' },
+    { sym:'SHRIRAMFIN.NS',  label:'SHRIRAM FIN',   name:'Shriram Finance' },
+    { sym:'SUNPHARMA.NS',   label:'SUN PHARMA',    name:'Sun Pharmaceutical' },
+    { sym:'TATACONSUM.NS',  label:'TATA CONSUMER', name:'Tata Consumer Products' },
+    // Post-demerger the old TATAMOTORS.NS ticker 404s; the group now trades
+    // as two listings. Verified live against the relay rather than assumed —
+    // a guessed ticker would silently render as a permanent NO QUOTE card.
+    { sym:'TMCV.NS',        label:'TATA MOTORS',   name:'Tata Motors (commercial vehicles)' },
+    { sym:'TMPV.NS',        label:'TATA MOTORS PV', name:'Tata Motors Passenger Vehicles' },
+    { sym:'TATASTEEL.NS',   label:'TATA STEEL',    name:'Tata Steel' },
+    { sym:'TCS.NS',         label:'TCS',           name:'Tata Consultancy Services' },
+    { sym:'TECHM.NS',       label:'TECH MAHINDRA', name:'Tech Mahindra' },
+    { sym:'TITAN.NS',       label:'TITAN',         name:'Titan Company' },
+    { sym:'TRENT.NS',       label:'TRENT',         name:'Trent Ltd' },
+    { sym:'ULTRACEMCO.NS',  label:'ULTRATECH',     name:'UltraTech Cement' },
+    { sym:'WIPRO.NS',       label:'WIPRO',         name:'Wipro Ltd' }
   ],
 
+  /** The 50 largest / most-traded US names by weight in the S&P 500 and
+   *  Nasdaq 100. Not an index membership list — a watchlist. */
   US_STOCKS: [
-    { sym:'AAPL', label:'AAPL', name:'Apple Inc.', fallbackPrice:224.50, fallbackChange:0.95 },
-    { sym:'MSFT', label:'MSFT', name:'Microsoft Corp.', fallbackPrice:448.90, fallbackChange:0.40 },
-    { sym:'NVDA', label:'NVDA', name:'NVIDIA Corp.', fallbackPrice:118.25, fallbackChange:3.15 },
-    { sym:'GOOGL', label:'GOOGL', name:'Alphabet Inc.', fallbackPrice:182.40, fallbackChange:-0.60 },
-    { sym:'AMZN', label:'AMZN', name:'Amazon.com Inc.', fallbackPrice:186.70, fallbackChange:1.05 },
-    { sym:'TSLA', label:'TSLA', name:'Tesla Inc.', fallbackPrice:219.80, fallbackChange:-2.30 },
-    { sym:'META', label:'META', name:'Meta Platforms', fallbackPrice:492.10, fallbackChange:1.80 },
-    { sym:'AMD', label:'AMD', name:'Advanced Micro Devices', fallbackPrice:138.40, fallbackChange:2.10 },
-    { sym:'NFLX', label:'NFLX', name:'Netflix Inc.', fallbackPrice:658.20, fallbackChange:0.75 },
-    { sym:'BRK-B', label:'BERKSHIRE', name:'Berkshire Hathaway', fallbackPrice:445.60, fallbackChange:0.20 },
-    { sym:'INTC', label:'INTEL', name:'Intel Corp.', fallbackPrice:30.15, fallbackChange:-1.45 },
-    { sym:'PLTR', label:'PALANTIR', name:'Palantir Tech', fallbackPrice:27.80, fallbackChange:4.20 }
+    { sym:'AAPL',  label:'AAPL',   name:'Apple Inc.' },
+    { sym:'ABBV',  label:'ABBV',   name:'AbbVie Inc.' },
+    { sym:'ABT',   label:'ABT',    name:'Abbott Laboratories' },
+    { sym:'ACN',   label:'ACN',    name:'Accenture plc' },
+    { sym:'ADBE',  label:'ADBE',   name:'Adobe Inc.' },
+    { sym:'AMD',   label:'AMD',    name:'Advanced Micro Devices' },
+    { sym:'AMZN',  label:'AMZN',   name:'Amazon.com Inc.' },
+    { sym:'AVGO',  label:'AVGO',   name:'Broadcom Inc.' },
+    { sym:'BA',    label:'BA',     name:'Boeing Co.' },
+    { sym:'BAC',   label:'BAC',    name:'Bank of America' },
+    { sym:'BRK-B', label:'BRK.B',  name:'Berkshire Hathaway' },
+    { sym:'CAT',   label:'CAT',    name:'Caterpillar Inc.' },
+    { sym:'COST',  label:'COST',   name:'Costco Wholesale' },
+    { sym:'CRM',   label:'CRM',    name:'Salesforce Inc.' },
+    { sym:'CSCO',  label:'CSCO',   name:'Cisco Systems' },
+    { sym:'CVX',   label:'CVX',    name:'Chevron Corp.' },
+    { sym:'DIS',   label:'DIS',    name:'Walt Disney Co.' },
+    { sym:'GE',    label:'GE',     name:'GE Aerospace' },
+    { sym:'GOOGL', label:'GOOGL',  name:'Alphabet Inc.' },
+    { sym:'HD',    label:'HD',     name:'Home Depot Inc.' },
+    { sym:'IBM',   label:'IBM',    name:'IBM Corp.' },
+    { sym:'INTC',  label:'INTC',   name:'Intel Corp.' },
+    { sym:'INTU',  label:'INTU',   name:'Intuit Inc.' },
+    { sym:'JNJ',   label:'JNJ',    name:'Johnson & Johnson' },
+    { sym:'JPM',   label:'JPM',    name:'JPMorgan Chase' },
+    { sym:'KO',    label:'KO',     name:'Coca-Cola Co.' },
+    { sym:'LIN',   label:'LIN',    name:'Linde plc' },
+    { sym:'LLY',   label:'LLY',    name:'Eli Lilly & Co.' },
+    { sym:'MA',    label:'MA',     name:'Mastercard Inc.' },
+    { sym:'MCD',   label:'MCD',    name:"McDonald's Corp." },
+    { sym:'META',  label:'META',   name:'Meta Platforms' },
+    { sym:'MRK',   label:'MRK',    name:'Merck & Co.' },
+    { sym:'MSFT',  label:'MSFT',   name:'Microsoft Corp.' },
+    { sym:'NFLX',  label:'NFLX',   name:'Netflix Inc.' },
+    { sym:'NOW',   label:'NOW',    name:'ServiceNow Inc.' },
+    { sym:'NVDA',  label:'NVDA',   name:'NVIDIA Corp.' },
+    { sym:'ORCL',  label:'ORCL',   name:'Oracle Corp.' },
+    { sym:'PEP',   label:'PEP',    name:'PepsiCo Inc.' },
+    { sym:'PG',    label:'PG',     name:'Procter & Gamble' },
+    { sym:'PLTR',  label:'PLTR',   name:'Palantir Technologies' },
+    { sym:'QCOM',  label:'QCOM',   name:'Qualcomm Inc.' },
+    { sym:'TMO',   label:'TMO',    name:'Thermo Fisher Scientific' },
+    { sym:'TSLA',  label:'TSLA',   name:'Tesla Inc.' },
+    { sym:'TXN',   label:'TXN',    name:'Texas Instruments' },
+    { sym:'UBER',  label:'UBER',   name:'Uber Technologies' },
+    { sym:'UNH',   label:'UNH',    name:'UnitedHealth Group' },
+    { sym:'V',     label:'V',      name:'Visa Inc.' },
+    { sym:'WFC',   label:'WFC',    name:'Wells Fargo & Co.' },
+    { sym:'WMT',   label:'WMT',    name:'Walmart Inc.' },
+    { sym:'XOM',   label:'XOM',    name:'Exxon Mobil Corp.' }
   ],
 
-  /** Fetch quotes for an array of symbols in one relay call */
+  /** @param {'india'|'us'} region */
+  basket(region){ return region === 'us' ? this.US_STOCKS : this.INDIAN_STOCKS; },
+
+  /** relay.js caps /quote at 30 symbols per request and silently DROPS the
+   *  tail beyond it — with a 50-name basket that would quietly amputate
+   *  the last 20 and compute breadth on a truncated, alphabetically-biased
+   *  slice. So requests are chunked. Chunks run one after another, not all
+   *  at once: each chunk fans out to that many upstream Yahoo calls inside
+   *  the relay, and firing 50 in one breath earns a rate-limit — which
+   *  comes back as nulls, i.e. a thinner basket, i.e. the same silent bias
+   *  by a slower route. */
+  QUOTE_BATCH: 20,
+
+  /** Fetch quotes for any number of symbols, batching to respect the relay
+   *  cap. A failed batch contributes nothing rather than failing the lot;
+   *  the caller renders those symbols as NO QUOTE.
+   *  @param {string[]} symbols @returns {Promise<Object<string, any>>} */
   async fetchQuotes(symbols){
     if (!symbols || !symbols.length) return {};
-    const qs = symbols.map(s => encodeURIComponent(s)).join(',');
-    try {
-      const text = await Live.fetchWithTimeout(`${Live.RELAY_BASE}/quote?symbols=${qs}`, 8000);
-      return JSON.parse(text) || {};
-    } catch(e){
-      return {};
+    const out = {};
+    for (let i = 0; i < symbols.length; i += this.QUOTE_BATCH){
+      const chunk = symbols.slice(i, i + this.QUOTE_BATCH);
+      const qs = chunk.map(s => encodeURIComponent(s)).join(',');
+      try {
+        const text = await Live.fetchWithTimeout(`${Live.RELAY_BASE}/quote?symbols=${qs}`, 12000);
+        Object.assign(out, JSON.parse(text) || {});
+      } catch(e){ /* this batch stays missing — rendered as NO QUOTE, not invented */ }
     }
+    return out;
+  },
+
+  /** Equal-weighted breadth across whatever of a basket actually came back
+   *  live — the "is the market up or down today" read.
+   *
+   *  Deliberately NOT an index: the Nifty and the S&P are cap-weighted, so
+   *  a day where Reliance falls 3% while 40 mid-weights rise 1% moves this
+   *  number and the index in OPPOSITE directions. Both are true; they
+   *  answer different questions ("how is the average name doing" vs "how is
+   *  the market's capital doing"). The UI must therefore never label this
+   *  as the index, and `tracked`/`covered` come back alongside so it can
+   *  state what fraction the read is built on — an average over 6 of 51
+   *  names is a rumour, not a market read (Art. 4).
+   *
+   *  Rows with no live quote are EXCLUDED, never treated as 0% — counting
+   *  a missing quote as "flat" would drag the average toward zero and make
+   *  a broken relay look like a calm market.
+   *  @param {Array<{live?:boolean, changePct?:number, label?:string}>} rows */
+  breadth(rows){
+    const all = Array.isArray(rows) ? rows : [];
+    const live = all.filter(r => r && r.live && typeof r.changePct === 'number' && isFinite(r.changePct));
+    const base = { tracked: all.length, covered: live.length, up: 0, down: 0, flat: 0,
+                   avgPct: null, medianPct: null, best: null, worst: null };
+    if (!live.length) return base;
+    const pcts = live.map(r => r.changePct).sort((a, b) => a - b);
+    const mid = Math.floor(pcts.length / 2);
+    const ranked = [...live].sort((a, b) => b.changePct - a.changePct);
+    return {
+      ...base,
+      up:   live.filter(r => r.changePct > 0).length,
+      down: live.filter(r => r.changePct < 0).length,
+      flat: live.filter(r => r.changePct === 0).length,
+      avgPct: pcts.reduce((s, p) => s + p, 0) / pcts.length,
+      // median alongside the mean because one 12% mover in a 50-name basket
+      // can drag the average across zero on an otherwise flat day
+      medianPct: pcts.length % 2 ? pcts[mid] : (pcts[mid - 1] + pcts[mid]) / 2,
+      best: ranked[0],
+      worst: ranked[ranked.length - 1]
+    };
   },
 
   /** @param {string} label @returns {{price:number, changePct:number, ts:number}|null} */

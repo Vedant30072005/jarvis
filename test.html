@@ -53,6 +53,7 @@
 <script src="js/honesty.js"></script>
 <script src="js/sunday.js"></script>
 <script src="js/provenance.js"></script>
+<script src="js/budget.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/brain.js"></script>
 <script src="js/scenario.js"></script>
@@ -2072,6 +2073,92 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
   Market.live = saved;
 })();
 
+/* ================= stock baskets & market breadth =================
+   The breadth number is the one figure on the Command Center that claims
+   to describe a WHOLE market, so its failure modes are the expensive
+   kind: a missing quote silently counted as "flat" makes a dead relay
+   look like a calm market, and a truncated fetch makes an alphabetical
+   slice look like the index. */
+(function(){
+  assert('Market baskets: no fabricated price seeds survive — a card with no quote must have nothing to draw',
+    ![...Market.INDIAN_STOCKS, ...Market.US_STOCKS].some(s => 'fallbackPrice' in s || 'fallbackChange' in s));
+
+  assert('Market baskets: every entry has a symbol, and symbols are unique within a basket',
+    [Market.INDIAN_STOCKS, Market.US_STOCKS].every(list =>
+      list.every(s => typeof s.sym === 'string' && s.sym.length) &&
+      new Set(list.map(s => s.sym)).size === list.length),
+    `${Market.INDIAN_STOCKS.length} IN / ${Market.US_STOCKS.length} US`);
+
+  assert('Market baskets: Indian symbols carry the .NS suffix, US symbols do not',
+    Market.INDIAN_STOCKS.every(s => s.sym.endsWith('.NS')) && Market.US_STOCKS.every(s => !s.sym.endsWith('.NS')));
+
+  assert('Market.basket: region string picks the list, unknown region falls back to India rather than crashing',
+    Market.basket('us') === Market.US_STOCKS && Market.basket('india') === Market.INDIAN_STOCKS && Market.basket('mars') === Market.INDIAN_STOCKS);
+
+  const rows = [
+    { label:'A', live:true,  changePct: 2 },
+    { label:'B', live:true,  changePct: 1 },
+    { label:'C', live:true,  changePct: -1 },
+    { label:'D', live:true,  changePct: 0 },
+    { label:'E', live:false, changePct: null }   // relay returned nothing
+  ];
+  const b = Market.breadth(rows);
+
+  assert('Market.breadth: a no-quote name is EXCLUDED, not counted as 0% — a dead feed must not read as a calm market',
+    b.covered === 4 && b.tracked === 5 && b.avgPct === 0.5,
+    `covered=${b.covered} tracked=${b.tracked} avg=${b.avgPct}`);
+
+  assert('Market.breadth: advancers / decliners / unchanged are counted separately from the average',
+    b.up === 2 && b.down === 1 && b.flat === 1, `${b.up}/${b.down}/${b.flat}`);
+
+  assert('Market.breadth: best and worst are the real extremes of the basket',
+    b.best.label === 'A' && b.worst.label === 'C', `${b.best?.label}/${b.worst?.label}`);
+
+  // The reason the median is shown next to the mean at all.
+  const skew = Market.breadth([
+    { label:'BOOM', live:true, changePct: 14 },
+    { label:'X', live:true, changePct: -0.2 }, { label:'Y', live:true, changePct: -0.3 },
+    { label:'Z', live:true, changePct: -0.4 }, { label:'W', live:true, changePct: -0.5 }
+  ]);
+  assert('Market.breadth: median disagrees with the mean when one outlier carries it (so the UI can show both)',
+    skew.avgPct > 0 && skew.medianPct < 0, `mean=${skew.avgPct.toFixed(2)} median=${skew.medianPct}`);
+
+  const none = Market.breadth([{ live:false }, { live:false }]);
+  assert('Market.breadth: zero live quotes gives a NULL average, never 0% — absence is not flatness',
+    none.avgPct === null && none.medianPct === null && none.covered === 0 && none.tracked === 2,
+    JSON.stringify(none));
+
+  assert('Market.breadth: junk input degrades to an empty read rather than throwing',
+    Market.breadth(null).covered === 0 && Market.breadth([null, undefined]).covered === 0 &&
+    Market.breadth([{ live:true, changePct: NaN }]).covered === 0);
+})();
+
+/* fetchQuotes must SPLIT a basket bigger than the relay's 30-symbol cap;
+   relay.js slices at 30 and drops the rest silently, which would amputate
+   a 50-name basket's tail and bias every breadth read built on it. */
+async function runStockBasketTests(){
+  const savedFetch = Live.fetchWithTimeout;
+  const calls = [];
+  Live.fetchWithTimeout = async (url) => {
+    const syms = decodeURIComponent(new URL(url).searchParams.get('symbols')).split(',');
+    calls.push(syms);
+    return JSON.stringify(Object.fromEntries(syms.map(s => [s, { price: 1, changePct: 0 }])));
+  };
+  const many = Array.from({ length: 50 }, (_, i) => 'S' + i);
+  const out = await Market.fetchQuotes(many);
+  Live.fetchWithTimeout = savedFetch;
+
+  assert('Market.fetchQuotes: a 50-symbol basket is batched under the relay 30-symbol cap, and every symbol comes back',
+    calls.length > 1 && calls.every(c => c.length <= 30) && Object.keys(out).length === 50,
+    `${calls.length} batches, max ${Math.max(...calls.map(c => c.length))}, ${Object.keys(out).length} quotes`);
+
+  Live.fetchWithTimeout = async () => { throw new Error('relay down'); };
+  const dead = await Market.fetchQuotes(['AAPL', 'MSFT']);
+  Live.fetchWithTimeout = savedFetch;
+  assert('Market.fetchQuotes: a dead relay resolves to an empty map and never throws (cards render NO QUOTE, not a crash)',
+    dead && Object.keys(dead).length === 0, JSON.stringify(dead));
+}
+
 /* ================= NSE session clock (IST-anchored) ================= */
 (function(){
   // Built from a UTC instant so the assertion holds on any machine
@@ -2127,6 +2214,47 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
     Brain.corpusNote() === '');
 
   Engine.items = savedItems;
+})();
+
+/* ================= Union Budget reference integrity ================= */
+/* This is the one module holding figures that are not fetched. That is
+   defensible (a budget is an annual document, not a stream) ONLY while
+   it stays honest about being static, dated and hand-entered. These
+   assertions guard the properties that make it defensible. */
+(function(){
+  const sum = Budget.checksum();
+  assert('Budget: source percentages total exactly 100 — a dropped or duplicated line shows up here, not as a silently wrong river',
+    sum.sourcesPct === 100, `sources total ${sum.sourcesPct}%`);
+  assert('Budget: destination percentages total exactly 100',
+    sum.destinationsPct === 100, `destinations total ${sum.destinationsPct}%`);
+
+  assert('Budget: every entry carries a label, a positive percentage and a kind (drives colour + honest legend)',
+    [...Budget.sources, ...Budget.destinations].every(r => r.label && r.pct > 0 && r.kind),
+    JSON.stringify([...Budget.sources, ...Budget.destinations].filter(r => !(r.label && r.pct > 0 && r.kind))));
+
+  assert('Budget: allocations are positive and none exceeds total expenditure (catches a lakh/crore unit slip)',
+    Budget.allocations.every(a => a.cr > 0 && a.cr < Budget.totals.expenditure),
+    JSON.stringify(Budget.allocations.filter(a => !(a.cr > 0 && a.cr < Budget.totals.expenditure))));
+
+  assert('Budget: capex is a real subset of total expenditure',
+    Budget.totals.capex > 0 && Budget.totals.capex < Budget.totals.expenditure);
+
+  // The provenance line is the whole honesty contract — it must name the
+  // year, say it is static, and never imply live data.
+  const line = Budget.provenanceLine(new Date('2025-03-01').getTime());
+  assert('Budget.provenanceLine: names the fiscal year, the presentation date and states it is NOT live',
+    line.includes('FY2025-26') && /static reference/.test(line) && /not live/.test(line), line);
+
+  assert('Budget.provenanceLine: within one budget cycle it does not cry stale',
+    !/newer Budget/.test(Budget.provenanceLine(new Date('2025-06-01').getTime())));
+
+  assert('Budget: past a full cycle it warns that a newer Budget almost certainly exists (a year-old allocation must not read as current)',
+    Budget.isLikelySuperseded(new Date('2026-08-01').getTime()) &&
+    /newer Budget/.test(Budget.provenanceLine(new Date('2026-08-01').getTime())),
+    Budget.provenanceLine(new Date('2026-08-01').getTime()));
+
+  assert('Budget.crFromPct: converts a share of spend into ₹ crore consistently with the stated total',
+    Budget.crFromPct(100) === Budget.totals.expenditure && Budget.crFromPct(8) === Math.round(Budget.totals.expenditure * 0.08));
 })();
 
 /* ================= a live uplink retires the invented corpus ================= */
@@ -2328,6 +2456,7 @@ async function runLocalLlmTests(){
   await runPersistTests(); // async — must complete before we tally
   await runQuotesLiveTests(); // async — same reason
   await runLocalLlmTests(); // async — same reason
+  await runStockBasketTests(); // async — same reason
 
   const out = document.getElementById('out');
   out.innerHTML = '<h2>Results</h2>' + results.map(r => `

@@ -1988,3 +1988,157 @@ labelled, not backfilled). Forced-empty render confirmed to produce the
 new honest copy and a working fetch button.
 
 test.html: 329/329.
+
+**2026-08-01 · Stocks monitor widened to full baskets; market breadth
+replaces eyeballing 50 cards** — Requested: "add all stocks there with
+two buttons, india and us, also make a group of all indian stocks and us
+stocks, with either the %increase or %decrease, which shows overall idea
+of the market movement."
+
+The baskets went from 12 hand-picked names each to the NIFTY 50 (+ HAL,
+carried over) and the 50 largest US names by index weight — 102 symbols,
+every one of them curl-checked against the relay before being committed.
+That check earned its keep immediately: `TATAMOTORS.NS` 404s post-demerger,
+and the group now trades as `TMCV.NS` (commercial vehicles) and `TMPV.NS`
+(passenger vehicles). A guessed ticker would have shipped as a permanent
+NO QUOTE card that looked like a bug in the feed rather than a stale
+constant in this file. 102/102 resolve live.
+
+`relay.js` slices `/quote?symbols=` at 30 and drops the tail SILENTLY, so
+a 52-name basket sent as one request would have come back amputated —
+and the breadth average computed on top of it would have been an
+alphabetical slice wearing the whole market's face. `Market.fetchQuotes`
+now batches at 20, sequentially (each batch fans out to that many upstream
+calls inside the relay; 50 in one breath earns a rate-limit, which returns
+nulls, which is the same silent bias by a slower route).
+
+**The fabricated `fallbackPrice`/`fallbackChange` seeds are gone.** They
+were tolerable as one dud card wearing a SIM chip. They are not tolerable
+under a basket-wide average: the moment invented numbers feed a figure
+labelled "overall market movement", the fabrication stops being a labelled
+card and becomes a false read on an entire market. A symbol with no quote
+now renders NO QUOTE — dashed border, dimmed, an em-dash where the price
+would be, no arrow and no red/green tint that would imply a direction
+nobody measured. Verified by pointing `Live.RELAY_BASE` at a dead port:
+52 cards, 52 NO QUOTE, zero prices rendered, and both breadth tiles saying
+"No quote came back for any of the 52 names — the relay is likely down.
+This tile stays blank rather than showing a made-up market."
+
+`Market.breadth()` is pure and lives in market.js so test.html can reach
+it. Two decisions inside it are the honest ones:
+  - a no-quote name is EXCLUDED from the average, never counted as 0%.
+    Counting missing quotes as "flat" would drag the mean toward zero and
+    make a dead relay look like a calm market — the failure mode would
+    have been invisible precisely when it mattered most.
+  - `covered`/`tracked` come back alongside the number, so the tile can
+    say "52 of 52 quoted" (Art. 4). An average over 6 of 52 names is a
+    rumour, not a market read, and the tile now goes amber below 60%.
+Median ships next to the mean because one 8% mover in a 50-name basket can
+drag the average across zero on an otherwise flat day — showing both is
+Art. 5 (disagreement displayed, not averaged away).
+
+Both region tiles are always visible, not just the selected one: the
+toggle changes which basket you READ, not which market exists. The
+inactive region is filled by one quiet background pull, once per session
+(Art. 3 — nothing on a timer). That pull is de-duplicated by region
+promise, because toggling INTO a region mid-flight would otherwise fire a
+second identical request and render an empty grid while the answer was
+already on the wire.
+
+Each tile states plainly that it is **not** the index: "Not the Nifty —
+that index is cap-weighted; this is a plain average of the names in this
+list, so the two can point opposite ways." They genuinely can, and a user
+comparing this tile against a Nifty screenshot deserves to know why before
+they conclude one of them is broken rather than that they answer different
+questions.
+
+Breadth is always computed on the FULL basket, never the filtered view —
+"the market is up 0.5%" must not silently mean "the one stock you searched
+for is up 0.5%". Verified: searching TATAPOWER (not in the basket, fetched
+live via the .NS fallback) narrows the grid to one card while both tiles
+stay at 52-of-52 and 50-of-50.
+
+The card grid is capped at min(58vh, 620px) and scrolls. 52 cards pushing
+the radar, flows and patterns panels a screen down would have made the
+Command Center a stock screener with a dashboard attached; the tiles are
+the at-a-glance read, the grid is the detail you scroll into.
+
+Verified live, cold boot: India +0.47% (33 up / 19 down, 52 of 52 quoted,
+WEEKEND, stalest print 22h) and US +0.38% (30 up / 20 down, 50 of 50) —
+both regions populated without a click, no console errors, and a reload
+after the dead-relay test recovering to full live coverage.
+
+test.html: 350/350 (12 new assertions covering basket integrity, the
+exclude-don't-zero rule, mean-vs-median divergence, null-not-zero on an
+empty read, batching under the relay cap, and a dead relay resolving
+empty rather than throwing).
+
+**2026-07-29 · Union Budget river (Money Flow → budget section)** —
+Requested: a budget section showing where India's money goes, with a
+water-flow visualisation.
+
+**Not a seventh nav item.** Constitution Art. 8 fixes the sidebar at six
+views forever, so this nests inside Money Flow — which is the right home
+regardless: "where the country's rupee goes" belongs beside "where the
+market's rupee goes".
+
+**The honesty problem, addressed head-on.** This session removed
+fabricated data everywhere; a budget section could reintroduce it. The
+distinction that makes this legitimate: Union Budget figures are
+PUBLISHED PUBLIC FACTS, not inventions. But they cannot be fetched —
+budget documents are PDFs, there is no feed — so they are static
+reference data, and the only honest way to ship them is to say so
+loudly. `js/budget.js` therefore carries FY, presentation date, entry
+date, source and a verify URL, and `provenanceLine()` renders all of it
+above the chart rather than tucked beneath: "Union Budget FY2025-26 ·
+presented 01 Feb 2025 · static reference, entered by hand N days ago ·
+not live" plus a link to indiabudget.gov.in.
+
+`isLikelySuperseded()` fires past ~400 days (one Feb-to-Feb cycle plus
+slack) and appends "A newer Budget has almost certainly been presented
+since — verify before relying on these." At today's date that warning is
+ALREADY LIVE (546 days), which is correct and desirable: these are
+FY2025-26 figures, FY2026-27 has since been presented, and the app says
+so on screen instead of passing year-old allocations as current. The
+figures were transcribed by hand from Budget at a Glance and carry real
+transcription risk that no code review removes — `checksum()` catches a
+dropped or duplicated line (both columns must total exactly 100%) but
+cannot catch a mistyped digit, which is precisely why the verify link is
+rendered rather than implied.
+
+**The visualisation.** `Charts.budgetRiver` — an animated Sankey where
+money is water: sources pour in from the left, destinations drain right,
+and stream WIDTH is share of the rupee. Particle count per destination
+tracks its percentage, so a 22% river visibly carries more water than a
+4% trickle before you read a label. The particles are decoration; the
+geometry is the data — widths, vertical extents and ordering are all
+computed from the percentages. Sources feed destinations proportionally
+rather than 1:1, because the Budget does not earmark specific taxes to
+specific heads and drawing dedicated pipes would invent a traceability
+the document does not contain.
+
+Two real bugs found and fixed while building: the ribbon accumulator was
+a no-op (`+= share * 0`), which would have stacked every stream at the
+same offset instead of weaving them; and the renderer relied solely on
+requestAnimationFrame, so in a background or non-compositing tab the
+panel stayed a blank rectangle forever — it now paints one frame
+synchronously before handing over to the loop.
+
+Verified live: canvas 615x338, 83.6% of pixels painted straight from
+renderFlows() with no manual redraw; provenance line and staleness
+warning both rendering; 10 allocation rows (Defence ₹6.81 L cr = 13.4%
+of spend).
+
+test.html: 350/350 (8 new — both percentage columns total 100, entries
+well-formed, allocations positive and below total expenditure to catch a
+lakh/crore unit slip, capex a real subset, provenance names the year and
+states "not live", no false staleness inside one cycle, correct staleness
+past one, and crFromPct consistency).
+
+Process note: one run showed 349/350, failing ORD-1704a's null model at
+real=84 vs scrambled=85. That test scrambles words randomly and now runs
+against a LIVE corpus that differs every load, so a 1-point margin trips
+it occasionally. Re-ran clean at 350/350. Recorded rather than hidden:
+it is a genuine signal that on some live batches conviction separates
+from noise only narrowly, which is worth watching — it is not a
+regression from this change (budget.js touches nothing in the engine).

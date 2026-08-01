@@ -477,8 +477,14 @@ body.has-cursor #cursorGlow, body.has-cursor #cursorDot{ opacity:1; }
 .feed-meta{ font-size:.64rem; color:var(--txt-3); letter-spacing:.12em; padding-left:4px; }
 
 /* ---------- Live Stocks Grid ---------- */
+/* Capped and scrolled: the basket is 50 names now, and letting it push
+   the radar, flows and patterns panels a full screen down would make the
+   Command Center a stock screener with a dashboard attached. The breadth
+   tiles above are the at-a-glance read; this grid is the detail you scroll
+   into. */
 .stock-cards-grid{
   display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px;
+  max-height:min(58vh, 620px); overflow-y:auto; padding-right:4px;
 }
 .stock-card{
   padding:14px 16px; border-radius:var(--r-md); border:1px solid var(--glass-line-soft);
@@ -502,6 +508,61 @@ body.has-cursor #cursorGlow, body.has-cursor #cursorDot{ opacity:1; }
 .stock-change.dn{ color:var(--red); background:rgba(255,107,122,.12); border:1px solid rgba(255,107,122,.3); }
 .stock-range{ font-family:var(--f-mono); font-size:.62rem; color:var(--txt-3); display:flex; justify-content:space-between; }
 .stock-card-foot{ display:flex; justify-content:space-between; align-items:center; margin-top:4px; padding-top:6px; border-top:1px solid var(--glass-line-soft); }
+
+/* A card with no quote must not look like a card with a quote: no tint,
+   no arrow, no number. It is a stated gap, not a neutral reading. */
+.stock-card.no-quote{ opacity:.62; border-style:dashed; }
+.stock-card.no-quote:hover{ opacity:.9; transform:none; box-shadow:none; border-color:var(--glass-line-soft); background:rgba(8,13,26,.45); }
+.stock-price.muted{ color:var(--txt-3); }
+.src-chip.live{ color:var(--green); border-color:rgba(61,220,151,.35); background:rgba(61,220,151,.07); }
+.src-chip.noq{ color:var(--txt-3); border-color:rgba(126,145,173,.3); background:rgba(126,145,173,.07); }
+
+/* ---------- Market breadth tiles (overall movement per region) ---------- */
+.breadth-tiles{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+  gap:12px; margin-bottom:16px;
+}
+.breadth-tile{
+  padding:14px 16px; border-radius:var(--r-md); border:1px solid var(--glass-line-soft);
+  background:rgba(8,13,26,.5); display:flex; flex-direction:column; gap:6px;
+  position:relative; overflow:hidden; transition:all var(--t-fast) var(--ease-out);
+}
+.breadth-tile::before{
+  content:''; position:absolute; inset:0 auto 0 0; width:3px; background:var(--txt-3); opacity:.5;
+}
+.breadth-tile.up::before{ background:var(--green); opacity:1; }
+.breadth-tile.dn::before{ background:var(--red); opacity:1; }
+.breadth-tile.is-active{ border-color:rgba(56,225,255,.35); background:rgba(56,225,255,.045); }
+.breadth-tile.is-empty{ opacity:.7; border-style:dashed; }
+
+.bt-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.bt-flag{ font-size:.95rem; line-height:1; }
+.bt-name{ font-family:var(--f-display); font-size:.82rem; font-weight:800; letter-spacing:.08em; color:var(--txt); }
+.bt-basket{ font-size:.58rem; letter-spacing:.12em; color:var(--txt-3); }
+.bt-active{
+  font-size:.55rem; letter-spacing:.12em; color:var(--cyan); margin-left:auto;
+  border:1px solid rgba(56,225,255,.3); border-radius:99px; padding:2px 7px;
+}
+.bt-move{
+  font-family:var(--f-mono); font-size:1.7rem; font-weight:700; line-height:1.1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.01em; cursor:help;
+}
+.bt-move.up{ color:var(--green); } .bt-move.dn{ color:var(--red); }
+.bt-move.flat, .bt-move.none{ color:var(--txt-3); }
+.bt-sub{ font-size:.68rem; color:var(--txt-3); line-height:1.5; }
+
+.bt-bar{ display:flex; height:5px; border-radius:99px; overflow:hidden; background:rgba(148,184,255,.12); margin-top:2px; }
+.bt-bar i{ display:block; height:100%; }
+.bt-bar i.up{ background:var(--green); }
+.bt-bar i.dn{ background:var(--red); }
+.bt-bar i.flat{ background:var(--txt-3); }
+
+.bt-counts{ display:flex; gap:12px; font-size:.65rem; letter-spacing:.06em; }
+.bt-counts .up{ color:var(--green); } .bt-counts .dn{ color:var(--red); } .bt-counts .flat{ color:var(--txt-3); }
+.bt-extremes{ display:flex; justify-content:space-between; gap:10px; font-family:var(--f-mono); font-size:.62rem; color:var(--txt-2); }
+.bt-src{ font-size:.58rem; letter-spacing:.1em; color:var(--txt-3); margin-top:2px; }
+.bt-src.warn{ color:var(--gold); }
+.bt-note{ font-size:.6rem; color:var(--txt-3); opacity:.75; line-height:1.45; border-top:1px solid var(--glass-line-soft); padding-top:6px; margin-top:2px; }
 
 .intel-list{ display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:14px; }
 .intel-card{ padding:16px; display:flex; flex-direction:column; gap:10px; position:relative; }
@@ -820,3 +881,13 @@ tr:hover .row-del{ opacity:1; }
   #viewTitle{ font-size:.85rem; }
   .clock{ display:none; }
 }
+
+/* ---------------- budget river (Money Flow → Union Budget) ---------------- */
+.river-wrap{ position:relative; width:100%; height:340px; }
+.river-wrap canvas{ width:100%; height:100%; display:block; }
+.river-axis{
+  display:flex; justify-content:space-between;
+  font-size:.66rem; letter-spacing:.08em; color:var(--txt-3);
+  padding:6px 4px 0;
+}
+@media (max-width: 720px){ .river-wrap{ height:420px; } }

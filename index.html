@@ -158,6 +158,10 @@
                 <button class="btn btn-ghost" id="btnStockRefresh" style="min-height:34px;padding:4px 12px;font-size:.65rem"><svg class="ic"><use href="#i-refresh"/></svg> REFRESH</button>
               </div>
             </header>
+            <!-- Market-wide breadth: one tile per region, both always
+                 visible. The toggle below changes which basket you READ,
+                 not which market exists. -->
+            <div class="breadth-tiles" id="stockBreadth" aria-label="Overall market movement by region"></div>
             <div class="stock-cards-grid" id="stockCardsGrid"></div>
           </article>
 
@@ -326,6 +330,26 @@
             <div class="legend" id="flowDonutLegend"></div>
           </article>
         </div>
+        <article class="panel glass reveal" id="budgetPanel">
+          <header class="panel-head">
+            <h3><svg class="ic"><use href="#i-bank"/></svg> UNION BUDGET — WHERE THE RUPEE FLOWS</h3>
+            <span class="panel-tag mono" id="budgetFy"></span>
+          </header>
+          <p class="feed-meta mono" id="budgetProvenance" style="margin:0 0 10px"></p>
+          <div class="river-wrap">
+            <canvas id="budgetRiver" role="img" aria-label="Animated flow of the union budget from sources to destinations"></canvas>
+          </div>
+          <div class="river-axis mono">
+            <span>WHERE IT COMES FROM</span><span>WHERE IT GOES</span>
+          </div>
+          <div class="table-wrap" style="margin-top:14px">
+            <table class="data-table" id="budgetAllocTable">
+              <thead><tr><th>MAJOR HEAD</th><th class="num">ALLOCATION</th><th class="num">SHARE OF SPEND</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </article>
+
         <article class="panel glass reveal">
           <header class="panel-head"><h3><svg class="ic"><use href="#i-globe"/></svg> FLOW LEDGER</h3></header>
           <div class="table-wrap">
@@ -552,6 +576,7 @@
 <script src="js/persist.js"></script>
 <script src="js/tabguard.js"></script>
 <script src="js/alerts.js"></script>
+<script src="js/budget.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/store.js"></script>

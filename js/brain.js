@@ -281,14 +281,32 @@ const Brain = {
   matchCompany(query){
     const q = String(query).toLowerCase();
     let best = null, bestIdx = Infinity;
-    for (const c of JDATA.COMPANIES){
+    const pool = [...JDATA.COMPANIES];
+    if (typeof Market !== 'undefined') {
+      if (Market.US_STOCKS) {
+        Market.US_STOCKS.forEach(s => {
+          if (!pool.some(c => c.sym.toLowerCase() === s.sym.toLowerCase())) {
+            pool.push({ name: s.name, sector: 'it', sym: s.sym });
+          }
+        });
+      }
+      if (Market.INDIAN_STOCKS) {
+        Market.INDIAN_STOCKS.forEach(s => {
+          const symClean = s.sym.replace('.NS', '');
+          if (!pool.some(c => c.sym.toLowerCase() === symClean.toLowerCase())) {
+            pool.push({ name: s.name, sector: 'banks', sym: symClean });
+          }
+        });
+      }
+    }
+    for (const c of pool){
       const nm = c.name.toLowerCase();
-      if (nm.length >= 3){
+      if (nm.length >= 2){
         const m = new RegExp(`\\b${this._rxEsc(nm)}\\b`).exec(q);
         if (m && m.index < bestIdx){ best = c; bestIdx = m.index; }
       }
-      const sym = c.sym.toLowerCase();
-      if (sym.length >= 3){
+      const sym = c.sym.toLowerCase().replace('.ns', '');
+      if (sym.length >= 2){
         const m = new RegExp(`\\b${this._rxEsc(sym)}\\b`).exec(q);
         if (m && m.index < bestIdx){ best = c; bestIdx = m.index; }
       }
@@ -532,35 +550,78 @@ const Brain = {
     },
     {
       id: 'sector-exposure',
-      rx: /\bexposure\b|affect my (portfolio|book|money)|do i (own|hold)\b/i,
+      rx: /\bexposure\b|affect my (portfolio|book|money)|do i (own|hold)\b|\bhow('s|\s+is)\b|\banalyze\b|\bdoing\b|\breason\b|\bwhy\b/i,
       answer(q){
-        // Company-level branch: a named company (not just its sector)
-        // gets its OWN qty/value/P&L and its own headline mentions —
-        // the gap that made "how's HAL doing" collapse into a sector
-        // rollup before. Checked first; falls through to the unchanged
-        // sector-only logic below when no specific company is named.
+        // Company-level branch: returns live quote, 1D movement, direct news catalysts,
+        // sector macro drivers, and cluster momentum explaining WHY the stock is moving.
         const company = Brain.matchCompany(q);
         if (company){
-          const nw = Portfolio.netWorth();
-          if (!nw) return { text: 'Your ledger is empty, Sir — no exposure to anything yet. Add holdings in My Money.' };
-          const held = Brain.holdingsForCompany(company);
           const name = U.esc(company.name);
-          const sectorLabel = U.esc(Brain._sectorLabel(company.sector));
-          const cluster = Engine.clusters.find(x => x.sector === company.sector);
-          const mentions = Brain.companyMentions(company);
-          const mentionNote = mentions.length ? ` ${mentions.length} signal${mentions.length === 1 ? '' : 's'} in today's feed name${mentions.length === 1 ? 's' : ''} it directly.` : '';
-          if (!held.length){
-            const sectorNote = cluster ? ` Sector-wide (${sectorLabel}): momentum ${cluster.score}/100, ${cluster.bull} bull / ${cluster.bear} bear.` : '';
-            return { text: `You don't hold <b>${name}</b> directly, Sir — zero position in that specific name.${sectorNote}${mentionNote} [→ My Money]`, goto: 'portfolio' };
+          const sym = U.esc(company.sym);
+          const sectorKey = company.sector;
+          const sectorLabel = U.esc(Brain._sectorLabel(sectorKey));
+
+          // Retrieve live quote if available
+          const symKey = company.sym;
+          const quote = (typeof Market !== 'undefined' && Market.get(symKey)) ||
+                        (typeof App !== 'undefined' && App._stockQuotesCache && (App._stockQuotesCache[symKey] || App._stockQuotesCache[symKey + '.NS']));
+
+          let priceHeader = `<b>${name} (${sym})</b>`;
+          if (quote && typeof quote.price === 'number'){
+            const curr = (quote.currency === 'INR' || symKey.endsWith('.NS')) ? '₹' : '$';
+            const isUp = quote.changePct >= 0;
+            const sign = isUp ? '▲ +' : '▼ ';
+            const sentiStyle = isUp ? 'color:var(--green)' : 'color:var(--red)';
+            priceHeader += ` · Live: <b>${curr}${quote.price.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</b> (<span style="${sentiStyle};font-weight:700">${sign}${quote.changePct}%</span> today)`;
           }
-          const value = held.reduce((s, h) => s + Portfolio.value(h), 0);
-          const cost = held.reduce((s, h) => s + Portfolio.cost(h), 0);
-          const qty = held.reduce((s, h) => s + h.qty, 0);
-          const plPct = cost ? (100 * (value - cost) / cost).toFixed(1) : '0';
-          let text = `<b>${name}</b> (${U.esc(company.sym)}): ${qty % 1 === 0 ? qty : qty.toFixed(2)} unit${qty === 1 ? '' : 's'}, ${U.fmtCompact(value)} (${(100 * value / nw).toFixed(0)}% of book), P&L ${+plPct >= 0 ? '+' : ''}${plPct}%.`;
-          if (cluster) text += ` Sector (${sectorLabel}) momentum: ${cluster.score}/100.`;
-          text += mentionNote + ` [→ My Money]`;
-          return { text, goto: 'portfolio' };
+
+          // Direct news mentions
+          const mentions = Brain.companyMentions(company).sort((a,b) => b.impact - a.impact);
+          // Sector-wide signals
+          const sectorSignals = Engine.items.filter(i => i.sectors.includes(sectorKey) && !i.hype).sort((a,b) => b.impact - a.impact);
+          const cluster = Engine.clusters.find(x => x.sector === sectorKey);
+          const idea = Engine.ideas.find(x => x.sector === sectorKey);
+
+          let catalysts = [];
+          if (mentions.length > 0){
+            mentions.slice(0, 2).forEach(m => {
+              const tag = m.senti === 'bull' ? '▲ BULLISH' : m.senti === 'bear' ? '▼ BEARISH' : '● NEUTRAL';
+              catalysts.push(`▸ <b>${U.esc(m.s)}</b>: "${U.esc(m.t)}" (${tag} · impact ${m.impact}/100)`);
+            });
+          }
+          if (sectorSignals.length > 0){
+            const secItem = sectorSignals.find(s => !mentions.includes(s));
+            if (secItem){
+              const tag = secItem.senti === 'bull' ? '▲ BULLISH' : secItem.senti === 'bear' ? '▼ BEARISH' : '● NEUTRAL';
+              catalysts.push(`▸ <b>${sectorLabel} Driver</b>: "${U.esc(secItem.t)}" (${U.esc(secItem.s)} · ${tag} · impact ${secItem.impact}/100)`);
+            }
+          }
+          if (cluster){
+            catalysts.push(`▸ <b>Sector Cluster (${sectorLabel})</b>: Momentum ${cluster.score}/100 (${cluster.bull} bullish / ${cluster.bear} bearish signals active).`);
+          }
+          if (idea){
+            catalysts.push(`▸ <b>Research Thesis</b>: ${U.esc(idea.label)} (conviction ${idea.conviction}%, ${idea.horizon}).`);
+          }
+
+          let responseText = `${priceHeader}\n\n`;
+          if (catalysts.length > 0){
+            responseText += `<b>REASON & MOVEMENT DRIVERS:</b>\n` + catalysts.join('\n') + `\n\n<span style="color:var(--txt-3);font-size:.72rem">Click FETCH LIVE in Intel Feed to sweep fresh wires for this ticker.</span>`;
+          } else {
+            responseText += `<b>MARKET MOVEMENT CONTEXT:</b>\n▸ Sector: <b>${sectorLabel}</b>.\n▸ No direct news catalysts logged in the current feed for ${name} yet.\n▸ Click <b>FETCH LIVE</b> in the Intel Feed to sweep real-time wires for this ticker!`;
+          }
+
+          // Optional: only append holding note if user actually holds units
+          const held = Brain.holdingsForCompany(company);
+          if (held.length > 0){
+            const nw = Portfolio.netWorth() || 1;
+            const value = held.reduce((s, h) => s + Portfolio.value(h), 0);
+            const cost = held.reduce((s, h) => s + Portfolio.cost(h), 0);
+            const qty = held.reduce((s, h) => s + h.qty, 0);
+            const plPct = cost ? (100 * (value - cost) / cost).toFixed(1) : '0';
+            responseText += `\n\n<span style="color:var(--gold);font-size:.74rem">Portfolio Note: You hold ${qty % 1 === 0 ? qty : qty.toFixed(2)} units (${U.fmtCompact(value)}, P&L ${+plPct >= 0 ? '+' : ''}${plPct}%).</span>`;
+          }
+
+          return { text: responseText, goto: 'intel' };
         }
         const r = Brain.resolveSector(q);
         if (!r) return { text: `Which sector or company, Sir? I track: ${Object.values(JDATA.SECTORS).map(s => s.label).join(', ')}.` };

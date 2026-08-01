@@ -151,7 +151,27 @@ JDATA.COMPANIES = [
   { name:'Anant Raj', sector:'datacenter', sym:'ANANTRAJ' },
   { name:'Techno Electric', sector:'datacenter', sym:'TECHNOE' },
   { name:'ABB India', sector:'datacenter', sym:'ABB' },
-  { name:'Siemens India', sector:'datacenter', sym:'SIEMENS' }
+  { name:'Siemens India', sector:'datacenter', sym:'SIEMENS' },
+  // US & Global Market Leaders
+  { name:'Apple', sector:'it', sym:'AAPL' },
+  { name:'Microsoft', sector:'it', sym:'MSFT' },
+  { name:'NVIDIA', sector:'semis', sym:'NVDA' },
+  { name:'Google', sector:'it', sym:'GOOGL' },
+  { name:'Alphabet', sector:'it', sym:'GOOGL' },
+  { name:'Amazon', sector:'it', sym:'AMZN' },
+  { name:'Tesla', sector:'ev', sym:'TSLA' },
+  { name:'Meta', sector:'it', sym:'META' },
+  { name:'AMD', sector:'semis', sym:'AMD' },
+  { name:'Netflix', sector:'it', sym:'NFLX' },
+  { name:'Berkshire', sector:'banks', sym:'BRK-B' },
+  { name:'Intel', sector:'semis', sym:'INTC' },
+  { name:'Palantir', sector:'it', sym:'PLTR' },
+  { name:'AbbVie', sector:'pharma', sym:'ABBV' },
+  { name:'Abbott', sector:'pharma', sym:'ABT' },
+  { name:'Accenture', sector:'it', sym:'ACN' },
+  { name:'Adobe', sector:'it', sym:'ADBE' },
+  { name:'Broadcom', sector:'semis', sym:'AVGO' },
+  { name:'Boeing', sector:'defence', sym:'BA' }
 ];
 /** Escape a company name for use inside a RegExp alternation. */
 JDATA._escRx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

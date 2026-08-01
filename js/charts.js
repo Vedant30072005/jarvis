@@ -306,6 +306,158 @@ const Charts = {
   }
 };
 
+/* ---------------- budget river (animated Sankey) ----------------
+   Money as water: sources pour in from the left, destinations drain to
+   the right, and the WIDTH of each stream is its share of the rupee.
+   Particles drift along each stream so volume is felt as flow-rate, not
+   just read off a bar — a 22% river visibly moves more water than a 4%
+   trickle even before you read the label.
+
+   The particles are decoration; the geometry is the data. Stream width,
+   vertical extent and ordering are all computed from the percentages,
+   so nothing about the shape is artistic licence. Respects
+   prefers-reduced-motion via Charts.reduced (renders a still river). */
+Charts.budgetRiver = function(canvas, sources, destinations, opts = {}){
+  const KIND_COLOR = {
+    tax:'#0096b8', debt:'#e0489a', other:'#7e91ad', transfer:'#8a63f0',
+    scheme:'#0da271', defence:'#bd8a16', subsidy:'#3b82f6', pension:'#c084fc'
+  };
+  const stop = { v: false };
+  let particles = [];
+
+  const layout = (w, h) => {
+    const padX = 4, padY = 10, gap = 3;
+    const colW = Math.max(90, Math.min(150, w * 0.26));
+    const usable = h - padY * 2;
+    const build = (rows, x) => {
+      const total = rows.reduce((a, r) => a + r.pct, 0) || 1;
+      const space = usable - gap * (rows.length - 1);
+      let y = padY;
+      return rows.map(r => {
+        const hh = Math.max(2, (r.pct / total) * space);
+        const band = { ...r, x, y, h: hh, color: KIND_COLOR[r.kind] || '#0096b8' };
+        y += hh + gap;
+        return band;
+      });
+    };
+    return {
+      left: build(sources, padX),
+      right: build(destinations, w - padX - colW),
+      colW, midL: padX + colW, midR: w - padX - colW
+    };
+  };
+
+  const draw = () => {
+    const { ctx, w, h } = Charts.size(canvas);
+    ctx.clearRect(0, 0, w, h);
+    const L = layout(w, h);
+
+    // Streams: every source feeds every destination proportionally, which
+    // is the honest shape — the Budget does not earmark specific taxes to
+    // specific heads, so drawing 1:1 pipes would invent a traceability
+    // that does not exist in the document.
+    // Proportional weave: source s gives destination d a slice of its own
+    // band sized by d's share, and d receives it into a slice sized by s's
+    // share. Two running offsets (one down each column) stack the ribbons
+    // without overlap, so both columns are exactly filled.
+    const srcTotal = sources.reduce((a, r) => a + r.pct, 0) || 1;
+    const dstTotal = destinations.reduce((a, r) => a + r.pct, 0) || 1;
+    const sOff = L.left.map(() => 0);   // consumed height down each source
+    const dOff = L.right.map(() => 0);  // consumed height down each destination
+    const cx = (L.midL + L.midR) / 2;
+
+    ctx.globalAlpha = .20;
+    L.left.forEach((s, si) => {
+      L.right.forEach((d, di) => {
+        const sh = s.h * (d.pct / dstTotal);   // slice of the source band
+        const dh = d.h * (s.pct / srcTotal);   // slice of the destination band
+        const sy = s.y + sOff[si], dy = d.y + dOff[di];
+        const grad = ctx.createLinearGradient(L.midL, 0, L.midR, 0);
+        grad.addColorStop(0, s.color); grad.addColorStop(1, d.color);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(L.midL, sy);
+        ctx.bezierCurveTo(cx, sy, cx, dy, L.midR, dy);
+        ctx.lineTo(L.midR, dy + dh);
+        ctx.bezierCurveTo(cx, dy + dh, cx, sy + sh, L.midL, sy + sh);
+        ctx.closePath(); ctx.fill();
+        sOff[si] += sh; dOff[di] += dh;
+      });
+    });
+    ctx.globalAlpha = 1;
+
+    // Source + destination bands
+    const band = (b, alignRight) => {
+      ctx.fillStyle = b.color;
+      ctx.fillRect(alignRight ? b.x : b.x, b.y, L.colW, b.h);
+      ctx.fillStyle = '#eaf3ff';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.textBaseline = 'middle';
+      const label = `${b.pct}%  ${b.label}`;
+      if (b.h >= 11){
+        ctx.textAlign = 'left';
+        ctx.fillText(label.length > 26 ? label.slice(0, 25) + '…' : label, b.x + 6, b.y + b.h / 2);
+      }
+    };
+    L.left.forEach(b => band(b, false));
+    L.right.forEach(b => band(b, true));
+
+    // Water: particles ride the streams left→right
+    ctx.globalAlpha = .85;
+    for (const p of particles){
+      const s = L.left[p.si], d = L.right[p.di];
+      if (!s || !d) continue;
+      const t = p.t;
+      const sy = s.y + s.h * p.sOff, dy = d.y + d.h * p.dOff;
+      const cx = (L.midL + L.midR) / 2;
+      const mt = 1 - t;
+      const x = mt*mt*mt*L.midL + 3*mt*mt*t*cx + 3*mt*t*t*cx + t*t*t*L.midR;
+      const y = mt*mt*mt*sy + 3*mt*mt*t*sy + 3*mt*t*t*dy + t*t*t*dy;
+      ctx.fillStyle = d.color;
+      ctx.beginPath(); ctx.arc(x, y, p.r, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    canvas.setAttribute('aria-label',
+      `Budget river. Sources: ${sources.map(s => `${s.label} ${s.pct}%`).join(', ')}. ` +
+      `Destinations: ${destinations.map(d => `${d.label} ${d.pct}%`).join(', ')}.`);
+  };
+
+  const seed = () => {
+    particles = [];
+    // Particle COUNT per destination tracks its share, so a fat river
+    // literally carries more water than a thin one.
+    destinations.forEach((d, di) => {
+      const n = Math.max(1, Math.round(d.pct * 0.9));
+      for (let i = 0; i < n; i++){
+        particles.push({
+          si: Math.floor(Math.random() * sources.length), di,
+          sOff: Math.random(), dOff: Math.random(),
+          t: Math.random(), sp: 0.0016 + Math.random() * 0.0022,
+          r: 0.8 + Math.random() * 1.1
+        });
+      }
+    });
+  };
+
+  seed();
+  // Paint one frame synchronously BEFORE handing over to rAF. In a
+  // background or non-compositing tab requestAnimationFrame is paused
+  // indefinitely, and without this the panel is a blank rectangle rather
+  // than a still river — the data would be there and simply never drawn.
+  draw();
+  if (Charts.reduced || opts.still) return { redraw: draw, stop(){} };
+
+  const tick = () => {
+    if (stop.v) return;
+    for (const p of particles){ p.t += p.sp; if (p.t > 1){ p.t = 0; p.sOff = Math.random(); } }
+    draw();
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  return { redraw: draw, stop(){ stop.v = true; } };
+};
+
 /* compact ₹ formatter used by charts + portfolio */
 U.fmtCompact = function(n){
   if (n >= 1e7) return '₹' + (n/1e7).toFixed(2) + ' Cr';
