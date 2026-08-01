@@ -213,6 +213,11 @@
       <!-- ============ VIEW: INTEL FEED ============ -->
       <section id="view-intel" class="view" aria-label="Intelligence feed">
         <div class="toolbar glass reveal">
+          <div class="region-toggle" id="regionToggle" role="tablist" aria-label="Filter news by region">
+            <button class="region-btn active" data-region="all" role="tab" aria-selected="true">ALL</button>
+            <button class="region-btn" data-region="india" role="tab" aria-selected="false"><span class="region-flag">🇮🇳</span> INDIA</button>
+            <button class="region-btn" data-region="global" role="tab" aria-selected="false"><span class="region-flag">🌐</span> GLOBAL</button>
+          </div>
           <div class="chip-row" id="intelFilters" role="tablist" aria-label="Filter news by category"></div>
           <div class="toolbar-right">
             <label class="search-box" for="intelSearch">

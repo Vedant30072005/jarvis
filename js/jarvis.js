@@ -177,7 +177,14 @@ const Jarvis = {
         if (!ideas.length) return 'No theses drafted yet, Sir.';
         let out = 'Drafted theses, ranked by conviction:\n';
         ideas.forEach(i => out += `▸ <b>${U.esc(i.label)}</b> — ${i.conviction}% conviction · ${i.horizon}\n`);
-        out += `Names to research: ${U.esc(ideas[0].watch.slice(0,3).join(', '))}.\nFor the record: these are research drafts, not orders. Verify valuations before deploying capital.`;
+        // Highest-stakes answer in the app: it names real, buyable tickers.
+        // If the corpus underneath is invented, saying only "not orders,
+        // verify valuations" is not enough — that warns about the ADVICE
+        // while letting the EVIDENCE pass as real. The corpus warning leads,
+        // because a reader who takes nothing else away must take this away.
+        out += `Names to research: ${U.esc(ideas[0].watch.slice(0,3).join(', '))}.`;
+        out += Brain.corpusNote();
+        out += `\nFor the record: these are research drafts, not orders. Verify valuations before deploying capital.`;
         App.gotoView('ideas', { silent: true });
         return out;
       } },

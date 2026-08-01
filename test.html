@@ -2129,6 +2129,35 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
   Engine.items = savedItems;
 })();
 
+/* ================= the highest-stakes answer must carry the corpus warning ================= */
+/* "which stocks to invest in" names REAL, BUYABLE tickers. Warning only
+   that these are "drafts, not orders" guards the ADVICE while letting the
+   EVIDENCE pass as real. If the corpus is invented, that has to be said
+   in the same breath as the ticker. */
+(function(){
+  // app.js (the UI layer) is deliberately NOT loaded in this harness, so
+  // `App` does not exist here — the intent calls App.gotoView() for its
+  // side-effect of switching view. Stub the global for the duration.
+  const savedItems = Engine.items, savedIdeas = Engine.ideas;
+  const hadApp = typeof App !== 'undefined';
+  if (!hadApp) window.App = { gotoView(){} };
+  Engine.ideas = [{ label:'Infrastructure', conviction:84, horizon:'6-18 MO', kind:'long', sector:'infra', watch:['L&T','KNR Constructions','NCC'] }];
+  const ideaIntent = Jarvis.INTENTS.find(i => i.rx.test('which stocks to invest in'));
+
+  Engine.items = [{ t:'fake', s:'PIB', senti:'bull', impact:50, sectors:['infra'], hype:false, entities:[], live:false }];
+  const simAnswer = ideaIntent.fn.call(Jarvis);
+  assert('Ideas answer: naming real tickers off an INVENTED corpus states that the evidence is simulated, not just that it is "not advice"',
+    /SIMULATED/.test(simAnswer) && /L&amp;T|L&T/.test(simAnswer), simAnswer.slice(0, 200));
+
+  Engine.items = [{ t:'real', s:'PIB', senti:'bull', impact:50, sectors:['infra'], hype:false, entities:[], live:true }];
+  const liveAnswer = ideaIntent.fn.call(Jarvis);
+  assert('Ideas answer: on a fully real corpus the simulated warning is absent (it must mean something when it appears)',
+    !/SIMULATED/.test(liveAnswer) && /not orders/.test(liveAnswer), liveAnswer.slice(0, 200));
+
+  Engine.items = savedItems; Engine.ideas = savedIdeas;
+  if (!hadApp) delete window.App;
+})();
+
 /* ================= LocalLLM: model resolution ================= */
 /* Regression for a bug that shipped in the first cut of local-llm.js: it
    hardcoded MODEL:'qwen2.5:14b' and probed with an EXACT name match, so on

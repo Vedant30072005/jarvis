@@ -7,6 +7,7 @@ const App = {
   view: 'command',
   mode: 'sim',            // 'sim' | 'live'
   intelFilter: 'all',
+  regionFilter: 'all',
   intelQuery: '',
   _stops: [],             // canvas animation loop stoppers
 
@@ -749,6 +750,16 @@ const App = {
       this.intelFilter = c.dataset.f;
       this.renderIntel();
     });
+
+    /* ---- region toggle (India / Global) ---- */
+    const regionBox = document.getElementById('regionToggle');
+    regionBox.addEventListener('click', e => {
+      const btn = e.target.closest('.region-btn'); if (!btn) return;
+      regionBox.querySelectorAll('.region-btn').forEach(x => { x.classList.toggle('active', x === btn); x.setAttribute('aria-selected', String(x === btn)); });
+      this.regionFilter = btn.dataset.region;
+      this.renderIntel();
+    });
+
     let deb;
     document.getElementById('intelSearch').addEventListener('input', e => {
       clearTimeout(deb);
@@ -763,9 +774,10 @@ const App = {
       const tg = e.target.closest('[data-tag]');
       if (tg){ document.getElementById('intelSearch').value = tg.dataset.tag; this.intelQuery = tg.dataset.tag.toLowerCase(); this.renderIntel(); }
       if (e.target.closest('[data-clear-filters]')){
-        this.intelFilter = 'all'; this.intelQuery = '';
+        this.intelFilter = 'all'; this.regionFilter = 'all'; this.intelQuery = '';
         document.getElementById('intelSearch').value = '';
         box.querySelectorAll('.chip').forEach(x => { const isAll = x.dataset.f === 'all'; x.classList.toggle('active', isAll); x.setAttribute('aria-selected', String(isAll)); });
+        regionBox.querySelectorAll('.region-btn').forEach(x => { const isAll = x.dataset.region === 'all'; x.classList.toggle('active', isAll); x.setAttribute('aria-selected', String(isAll)); });
         this.renderIntel();
       }
     });
@@ -773,6 +785,10 @@ const App = {
 
   renderIntel(){
     let items = [...Engine.items];
+    /* ---- region filter: India = gov/markets/corporate, Global = global ---- */
+    const INDIA_CATS = new Set(['gov', 'markets', 'corporate']);
+    if (this.regionFilter === 'india')  items = items.filter(i => INDIA_CATS.has(i.cat));
+    if (this.regionFilter === 'global') items = items.filter(i => i.cat === 'global');
     if (this.intelFilter !== 'all') items = items.filter(i => i.cat === this.intelFilter);
     if (this.intelQuery) items = items.filter(i =>
       (i.t + ' ' + i.b + ' ' + i.entities.map(e => e.tag).join(' ')).toLowerCase().includes(this.intelQuery));

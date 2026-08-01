@@ -1839,3 +1839,33 @@ cause: IST 17:27, MARKET CLOSED (15:30 close), refresh backed off to
 300s because a closed market's last print cannot move. No amber warning
 fired, which is the intended behaviour: aging prints are only suspicious
 while the market is open.
+
+**2026-07-29 · Anti-fraud part 3: the stock-picking answer** — Caught
+from a real screenshot of the app in use. Asked "which stocks to invest
+in as per todays news?", JARVIS replied with Infrastructure 84% /
+Semiconductors 70% / Defence 58% conviction and "Names to research: L&T,
+KNR Constructions, NCC" — every bit of it computed over the invented
+demo corpus. Its disclaimer read "these are research drafts, not orders.
+Verify valuations before deploying capital."
+
+That disclaimer guards the ADVICE while letting the EVIDENCE pass as
+real. It tells you not to treat the recommendation as an order; it says
+nothing about the fact that the ₹22,000 crore L&T order it rests on was
+never placed. This is the single highest-stakes answer in the app —
+the only one that names real, buyable tickers — so it was the worst
+place for the corpus warning to be missing. `Brain.corpusNote()` now
+fires there, ahead of the existing not-advice line.
+
+Verified live on the exact question from the screenshot: the answer now
+carries "⚠ Computed over SIMULATED headlines — invented demo data, not
+real reporting" between the ticker names and the disclaimer.
+
+Also worth recording: my own test for this initially aborted the whole
+suite at 294 assertions because it referenced `App`, which test.html
+deliberately does not load (app.js is the UI layer). Fixed by stubbing
+the global. A harness that dies silently mid-run and shows an empty
+summary is its own small hazard — worth remembering that "no failures
+listed" is not the same as "all tests passed".
+
+test.html: 326/326 (2 new — simulated corpus forces the warning beside
+the tickers; a fully live corpus omits it).
