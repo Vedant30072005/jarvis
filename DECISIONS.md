@@ -1869,3 +1869,33 @@ listed" is not the same as "all tests passed".
 
 test.html: 326/326 (2 new — simulated corpus forces the warning beside
 the tickers; a fully live corpus omits it).
+
+**2026-07-29 · A live uplink retires the invented corpus** — Verifying
+that the corpus warnings actually clear on FETCH LIVE exposed a deeper
+flaw than the labelling fixed. `Engine.ingest` APPENDED live wires to the
+demo set: 85 real items merged with 32 fabricated ones, leaving a
+permanently "mixed" corpus. Labelling is necessary but not sufficient —
+while a fabricated headline stays loaded it keeps voting in momentum
+scores, cluster corroboration, the tracked-capital total and the ideas
+engine's conviction percentages. A conviction figure part-driven by an
+L&T order that was never placed is a WRONG NUMBER, and no disclaimer
+repairs a wrong number. Real data now REPLACES the demo set
+(`ingest(raw, {dropSimulated:true})`), guarded so an empty fetch leaves
+the board alone rather than emptying it; the default additive path is
+unchanged for every other caller.
+
+Verified end-to-end against live wires: 78 signals, 78 live, 0 simulated,
+0 SIMULATED chips, greeting prefix gone, `corpusNote()` silent. The
+analysis genuinely moved — capital gravity from Railways & Logistics
+(fabricated) to Pharma & Healthcare (real), stock picks from L&T/KNR/NCC
+to HDFC Bank/ICICI/SBI — which is the point: the warnings vanish because
+the fabricated inputs are gone, not because they were suppressed.
+
+Process note, twice bitten now: a test failed and the SIMULATED chips
+appeared missing in a user screenshot, both from BROWSER JS CACHING while
+disk and HTTP served the new code. Verified by comparing
+`Engine.ingest.toString()` in the page against the file. When a live
+check disagrees with the source, suspect the cache before the code.
+
+test.html: 329/329 (3 new — real wires replace the demo set, an empty
+fetch never wipes the board, and the flagless default stays additive).

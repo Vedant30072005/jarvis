@@ -2129,6 +2129,39 @@ Engine.run(JDATA.FEED); // restore real state after Brain v2 fixtures
   Engine.items = savedItems;
 })();
 
+/* ================= a live uplink retires the invented corpus ================= */
+/* Labelling fabricated headlines is necessary but not sufficient: while
+   they stay loaded they keep voting in momentum, corroboration and the
+   ideas engine's conviction figures. A conviction % part-driven by an
+   order that was never placed is a wrong number no disclaimer repairs. */
+(function(){
+  const savedItems = Engine.items, savedRun = Engine.run;
+  Engine.run = function(items){ this.items = items; };   // isolate from the full pipeline
+
+  Engine.items = [
+    { t:'invented demo headline', s:'PIB', live:false, entities:[], sectors:[] },
+    { t:'another invented one',   s:'RBI', live:false, entities:[], sectors:[] }
+  ];
+  Engine.ingest([{ id:'r1', t:'Real wire from a real outlet', s:'Reuters', h:1, cat:'markets', live:true }],
+                { dropSimulated: true });
+  assert('Engine.ingest(dropSimulated): real wires REPLACE the demo corpus rather than blending with it',
+    Engine.items.length === 1 && Engine.items.every(i => i.live), JSON.stringify(Engine.items.map(i => i.t)));
+
+  // Safety: a fetch that yields nothing must not empty the board.
+  Engine.items = [{ t:'demo only', s:'PIB', live:false, entities:[], sectors:[] }];
+  Engine.ingest([], { dropSimulated: true });
+  assert('Engine.ingest(dropSimulated): an empty fetch leaves the existing board alone instead of wiping it',
+    Engine.items.length === 1, JSON.stringify(Engine.items.map(i => i.t)));
+
+  // Default behaviour (no flag) is unchanged — additive.
+  Engine.items = [{ t:'demo', s:'PIB', live:false, entities:[], sectors:[] }];
+  Engine.ingest([{ id:'r2', t:'Some new wire', s:'ET', h:1, cat:'markets', live:true }]);
+  assert('Engine.ingest: without the flag the old additive behaviour is preserved',
+    Engine.items.length === 2, JSON.stringify(Engine.items.map(i => i.t)));
+
+  Engine.items = savedItems; Engine.run = savedRun;
+})();
+
 /* ================= the highest-stakes answer must carry the corpus warning ================= */
 /* "which stocks to invest in" names REAL, BUYABLE tickers. Warning only
    that these are "drafts, not orders" guards the ADVICE while letting the

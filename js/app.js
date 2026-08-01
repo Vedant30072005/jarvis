@@ -875,7 +875,10 @@ const App = {
     label.textContent = 'UPLINKING…';
     try {
       const raw = await Live.fetch(msg => { label.textContent = msg.toUpperCase().slice(0, 18); });
-      const added = Engine.ingest(raw); // emits 'data:updated' itself when it finds fresh items — the Bus.on in init() handles the re-render
+      // dropSimulated: a live uplink RETIRES the invented demo corpus. Once
+      // real wires exist there is no honest reason for fabricated headlines
+      // to keep voting in momentum, corroboration and conviction maths.
+      const added = Engine.ingest(raw, { dropSimulated: true }); // emits 'data:updated' itself when it finds fresh items — the Bus.on in init() handles the re-render
       this.mode = 'live';
       const chip = document.getElementById('modeChip');
       chip.textContent = 'LIVE FEED'; chip.classList.add('live');

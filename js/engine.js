@@ -304,15 +304,29 @@ const Engine = {
     }
   },
 
-  ingest(newRaw){
-    const known = new Set(this.items.map(i => i.t.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0, 70)));
+  /** @param {any[]} newRaw
+   *  @param {{dropSimulated?: boolean}} [opts] `dropSimulated` discards the
+   *   invented demo corpus once real wires are in hand. Labelling a
+   *   fabricated headline is necessary but not sufficient: while it stays
+   *   loaded it keeps voting in momentum scores, cluster corroboration,
+   *   the ideas engine's conviction figures and the tracked-capital total.
+   *   A conviction percentage part-driven by an order that was never placed
+   *   is a wrong number no disclaimer repairs, so real data REPLACES the
+   *   demo set rather than blending with it. Guarded: if the fetch yields
+   *   nothing, the existing board is left alone rather than emptied. */
+  ingest(newRaw, { dropSimulated = false } = {}){
+    const base = dropSimulated ? this.items.filter(i => i.live) : this.items;
+    const known = new Set(base.map(i => i.t.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0, 70)));
     const fresh = [];
     for (const r of newRaw){
       const key = r.t.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0, 70);
       if (!known.has(key)){ known.add(key); fresh.push(this.analyzeItem(r)); }
     }
-    if (fresh.length){
-      this.run([...fresh, ...this.items]);
+    const purged = this.items.length - base.length;
+    // Never leave the board empty: only purge when something real remains.
+    if (!fresh.length && !base.length) return 0;
+    if (fresh.length || purged){
+      this.run([...fresh, ...base]);
       Bus.emit('data:updated', { reason: 'live' }); // ORD-1301: let subscribers react instead of the caller re-rendering by hand
     }
     return fresh.length;
