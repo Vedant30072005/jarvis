@@ -81,6 +81,49 @@ const Market = {
     } catch(e){ return 0; /* relay down — caller keeps the SIM tape */ }
   },
 
+  /** Default Indian & US stocks list for Live Stocks Monitor */
+  INDIAN_STOCKS: [
+    { sym:'RELIANCE.NS', label:'RELIANCE', name:'Reliance Industries', fallbackPrice:3020.50, fallbackChange:1.25 },
+    { sym:'TCS.NS', label:'TCS', name:'Tata Consultancy Services', fallbackPrice:4180.20, fallbackChange:-0.45 },
+    { sym:'HDFCBANK.NS', label:'HDFC BANK', name:'HDFC Bank Ltd', fallbackPrice:1612.80, fallbackChange:0.85 },
+    { sym:'ICICIBANK.NS', label:'ICICI BANK', name:'ICICI Bank Ltd', fallbackPrice:1204.15, fallbackChange:1.10 },
+    { sym:'INFY.NS', label:'INFOSYS', name:'Infosys Ltd', fallbackPrice:1845.60, fallbackChange:-0.20 },
+    { sym:'SBIN.NS', label:'SBI', name:'State Bank of India', fallbackPrice:848.30, fallbackChange:0.65 },
+    { sym:'HAL.NS', label:'HAL', name:'Hindustan Aeronautics', fallbackPrice:4720.00, fallbackChange:2.40 },
+    { sym:'LT.NS', label:'L&T', name:'Larsen & Toubro', fallbackPrice:3640.90, fallbackChange:1.15 },
+    { sym:'M&M.NS', label:'M&M', name:'Mahindra & Mahindra', fallbackPrice:2940.50, fallbackChange:1.15 },
+    { sym:'BHARTIARTL.NS', label:'BHARTI AIRTEL', name:'Bharti Airtel Ltd', fallbackPrice:1480.50, fallbackChange:0.55 },
+    { sym:'AXISBANK.NS', label:'AXIS BANK', name:'Axis Bank Ltd', fallbackPrice:1175.00, fallbackChange:0.30 },
+    { sym:'BAJFINANCE.NS', label:'BAJAJ FINANCE', name:'Bajaj Finance Ltd', fallbackPrice:6920.00, fallbackChange:-1.05 }
+  ],
+
+  US_STOCKS: [
+    { sym:'AAPL', label:'AAPL', name:'Apple Inc.', fallbackPrice:224.50, fallbackChange:0.95 },
+    { sym:'MSFT', label:'MSFT', name:'Microsoft Corp.', fallbackPrice:448.90, fallbackChange:0.40 },
+    { sym:'NVDA', label:'NVDA', name:'NVIDIA Corp.', fallbackPrice:118.25, fallbackChange:3.15 },
+    { sym:'GOOGL', label:'GOOGL', name:'Alphabet Inc.', fallbackPrice:182.40, fallbackChange:-0.60 },
+    { sym:'AMZN', label:'AMZN', name:'Amazon.com Inc.', fallbackPrice:186.70, fallbackChange:1.05 },
+    { sym:'TSLA', label:'TSLA', name:'Tesla Inc.', fallbackPrice:219.80, fallbackChange:-2.30 },
+    { sym:'META', label:'META', name:'Meta Platforms', fallbackPrice:492.10, fallbackChange:1.80 },
+    { sym:'AMD', label:'AMD', name:'Advanced Micro Devices', fallbackPrice:138.40, fallbackChange:2.10 },
+    { sym:'NFLX', label:'NFLX', name:'Netflix Inc.', fallbackPrice:658.20, fallbackChange:0.75 },
+    { sym:'BRK-B', label:'BERKSHIRE', name:'Berkshire Hathaway', fallbackPrice:445.60, fallbackChange:0.20 },
+    { sym:'INTC', label:'INTEL', name:'Intel Corp.', fallbackPrice:30.15, fallbackChange:-1.45 },
+    { sym:'PLTR', label:'PALANTIR', name:'Palantir Tech', fallbackPrice:27.80, fallbackChange:4.20 }
+  ],
+
+  /** Fetch quotes for an array of symbols in one relay call */
+  async fetchQuotes(symbols){
+    if (!symbols || !symbols.length) return {};
+    const qs = symbols.map(s => encodeURIComponent(s)).join(',');
+    try {
+      const text = await Live.fetchWithTimeout(`${Live.RELAY_BASE}/quote?symbols=${qs}`, 8000);
+      return JSON.parse(text) || {};
+    } catch(e){
+      return {};
+    }
+  },
+
   /** @param {string} label @returns {{price:number, changePct:number, ts:number}|null} */
   get(label){ return this.live[label] || null; },
 

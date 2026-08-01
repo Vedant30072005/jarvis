@@ -53,6 +53,7 @@ const App = {
     this.wireNav();
     this.wireChat();
     this.wireIntel();
+    this.wireStocks();
     this.wirePortfolio();
     this.wireMirror();
     this.wireScenario();
@@ -98,6 +99,16 @@ const App = {
       this.archiveTouch();
       await this.maybeLoadDemoFromUrl();
       this.notifyBrowserProfile();
+      // Auto-uplink: attempt a real fetch on every boot, silently, so real
+      // wires are what a user sees whenever a connection is reachable —
+      // the simulated corpus is a fallback for genuine offline use, not
+      // the thing a working connection should leave on screen by default.
+      // fetchLive() already degrades gracefully (its own try/catch, honest
+      // SIM fallback on failure) and dropSimulated retires fabricated
+      // signals the moment real ones arrive, so firing it unattended here
+      // is exactly as safe as the user clicking FETCH LIVE themselves —
+      // just not requiring them to know to.
+      this.fetchLive().catch(() => {});
       if (this.settings.voiceOn){
         Jarvis.voiceOn = true;
         document.getElementById('btnVoice').setAttribute('aria-pressed', 'true');
@@ -494,6 +505,11 @@ const App = {
         `${sess.label} (NSE, IST — exchange holidays not tracked)`,
         ...perInstrument,
         `Fetched ${Market.stamp() || '—'} · refreshing every ${Math.round(Market.refreshMs() / 1000)}s`,
+        // "Live" cannot mean zero-latency on a free feed — say the honest
+        // floor here rather than let the word imply something no free
+        // source delivers. Measured against Yahoo's own exchange
+        // timestamp, not assumed.
+        'No free feed is latency-free — this one measured ~3-15s behind the exchange print.',
         stale ? '⚠ Market is open but an NSE print is aging — that feed may be delayed or wedged.' : ''
       ].filter(Boolean).join('\n');
     };
@@ -630,6 +646,9 @@ const App = {
       <span class="li"><i class="swatch" style="--sw:#3b82f6"></i>neutral</span>
       <span class="li"><span class="lv">blip size & distance = activity</span></span>`;
 
+    // live stocks monitor
+    this.renderStocks();
+
     // mini flows
     this.renderFlowBars(document.getElementById('miniFlows'), 5);
 
@@ -736,6 +755,167 @@ const App = {
         <div class="fbar-track"><i class="fbar-fill" style="--fc:${out ? 'var(--red)' : COLORS[i % COLORS.length]}" data-w="${Math.max(6, 100*Math.abs(r.total)/max)}%"></i></div>
       </div>`;
     }).join('') || '<p class="empty-state">No flows tracked yet.</p>';
+  },
+
+  /* ================= LIVE STOCKS MONITOR ================= */
+  stockRegion: 'india',
+  stockSearchQuery: '',
+  _stockQuotesCache: {},
+
+  wireStocks(){
+    const regionToggle = document.getElementById('stockRegionToggle');
+    if (regionToggle){
+      regionToggle.addEventListener('click', e => {
+        const btn = e.target.closest('.region-btn'); if (!btn) return;
+        regionToggle.querySelectorAll('.region-btn').forEach(x => {
+          const active = x === btn;
+          x.classList.toggle('active', active);
+          x.setAttribute('aria-selected', String(active));
+        });
+        this.stockRegion = btn.dataset.sregion;
+        this.renderStocks();
+      });
+    }
+
+    const searchInput = document.getElementById('stockSearch');
+    if (searchInput){
+      let deb;
+      searchInput.addEventListener('input', e => {
+        clearTimeout(deb);
+        deb = setTimeout(() => {
+          this.stockSearchQuery = e.target.value.trim().toLowerCase();
+          this.renderStocks();
+        }, 250);
+      });
+    }
+
+    const btnRefresh = document.getElementById('btnStockRefresh');
+    if (btnRefresh){
+      btnRefresh.addEventListener('click', () => {
+        this._stockQuotesCache = {};
+        this.renderStocks(true);
+      });
+    }
+
+    const grid = document.getElementById('stockCardsGrid');
+    if (grid){
+      grid.addEventListener('click', e => {
+        const az = e.target.closest('[data-analyze-stock]');
+        if (az){
+          this.openChat();
+          Jarvis.handle(`how is ${az.dataset.analyzeStock} doing`);
+        }
+      });
+    }
+  },
+
+  async renderStocks(forceRefresh = false){
+    const container = document.getElementById('stockCardsGrid');
+    if (!container) return;
+
+    let baseList = this.stockRegion === 'india' ? Market.INDIAN_STOCKS : Market.US_STOCKS;
+    
+    let symbolsToFetch = baseList.map(s => s.sym);
+    if (this.stockSearchQuery) {
+      const isCustomSymbol = !baseList.some(s => s.sym.toLowerCase().includes(this.stockSearchQuery) || s.label.toLowerCase().includes(this.stockSearchQuery) || s.name.toLowerCase().includes(this.stockSearchQuery));
+      if (isCustomSymbol && this.stockSearchQuery.length >= 2) {
+        const customSym = this.stockSearchQuery.toUpperCase();
+        if (!symbolsToFetch.includes(customSym)) symbolsToFetch.unshift(customSym);
+        const customSymNs = customSym + '.NS';
+        if (!symbolsToFetch.includes(customSymNs)) symbolsToFetch.unshift(customSymNs);
+      }
+    }
+
+    const missingSymbols = symbolsToFetch.filter(s => !this._stockQuotesCache[s] || forceRefresh);
+    if (missingSymbols.length > 0) {
+      const fetched = await Market.fetchQuotes(missingSymbols);
+      Object.assign(this._stockQuotesCache, fetched);
+    }
+
+    let items = baseList.map(item => {
+      const q = this._stockQuotesCache[item.sym];
+      return {
+        sym: item.sym,
+        label: item.label,
+        name: q?.shortName || item.name,
+        price: q?.price ?? item.fallbackPrice,
+        changePct: q?.changePct ?? item.fallbackChange,
+        currency: q?.currency || (item.sym.endsWith('.NS') ? 'INR' : 'USD'),
+        live: !!q && typeof q.price === 'number',
+        dayHigh: q?.dayHigh,
+        dayLow: q?.dayLow
+      };
+    });
+
+    if (this.stockSearchQuery) {
+      const query = this.stockSearchQuery.toLowerCase();
+      let filtered = items.filter(i => i.sym.toLowerCase().includes(query) || i.label.toLowerCase().includes(query) || i.name.toLowerCase().includes(query));
+      
+      if (filtered.length === 0) {
+        const customSym = this.stockSearchQuery.toUpperCase();
+        const customQuote = this._stockQuotesCache[customSym] || this._stockQuotesCache[customSym + '.NS'];
+        if (customQuote && typeof customQuote.price === 'number') {
+          filtered = [{
+            sym: customSym,
+            label: customSym,
+            name: customQuote.shortName || customSym,
+            price: customQuote.price,
+            changePct: customQuote.changePct,
+            currency: customQuote.currency || 'USD',
+            live: true,
+            dayHigh: customQuote.dayHigh,
+            dayLow: customQuote.dayLow
+          }];
+        }
+      }
+      items = filtered;
+    }
+
+    if (!items.length) {
+      container.innerHTML = `
+        <div class="empty-state glass" style="padding:24px;grid-column:1/-1;text-align:center">
+          <p style="color:var(--txt-2);font-family:var(--f-mono);font-size:.8rem">No stocks matching "${U.esc(this.stockSearchQuery)}", Sir.</p>
+        </div>`;
+      return;
+    }
+
+    const fmtMoney = (val, curr) => {
+      const symbol = curr === 'INR' ? '₹' : '$';
+      return `${symbol}${val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    container.innerHTML = items.map(stock => {
+      const isUp = stock.changePct >= 0;
+      const sign = isUp ? '▲ +' : '▼ ';
+      const changeCls = isUp ? 'up' : 'dn';
+
+      return `
+        <article class="stock-card glass">
+          <div class="stock-card-top">
+            <div>
+              <div class="stock-sym">${U.esc(stock.label)}</div>
+              <div class="stock-name" title="${U.esc(stock.name)}">${U.esc(stock.name)}</div>
+            </div>
+            <span class="src-chip ${stock.live ? '' : 'sim'}" style="${stock.live ? 'color:var(--green);border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.07)' : 'color:var(--gold);border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.1)'}">
+              ${stock.live ? 'LIVE' : 'SIM'}
+            </span>
+          </div>
+          <div class="stock-price-row">
+            <span class="stock-price">${fmtMoney(stock.price, stock.currency)}</span>
+            <span class="stock-change ${changeCls}">${sign}${Math.abs(stock.changePct).toFixed(2)}%</span>
+          </div>
+          ${(stock.dayHigh != null && stock.dayLow != null) ? `
+          <div class="stock-range">
+            <span>LOW: ${fmtMoney(stock.dayLow, stock.currency)}</span>
+            <span>HIGH: ${fmtMoney(stock.dayHigh, stock.currency)}</span>
+          </div>` : ''}
+          <div class="stock-card-foot">
+            <button class="link-btn mono" data-analyze-stock="${stock.label}">
+              <svg class="ic"><use href="#i-spark"/></svg> JARVIS, ANALYZE
+            </button>
+          </div>
+        </article>`;
+    }).join('');
   },
 
   /* ================= INTEL FEED ================= */

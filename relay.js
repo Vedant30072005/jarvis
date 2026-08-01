@@ -213,6 +213,10 @@ async function fetchOneQuote(symbol){
     price, prevClose,
     changePct: prevClose ? +(100 * (price - prevClose) / prevClose).toFixed(2) : 0,
     quoteTime: typeof meta.regularMarketTime === 'number' ? meta.regularMarketTime * 1000 : null,
+    shortName: meta.shortName || meta.longName || meta.symbol || symbol,
+    currency: meta.currency || (symbol.endsWith('.NS') || symbol.endsWith('.BO') ? 'INR' : 'USD'),
+    dayHigh: meta.regularMarketDayHigh ?? null,
+    dayLow: meta.regularMarketDayLow ?? null,
     ts: Date.now()
   };
   quoteCache.set(symbol, entry);
@@ -220,14 +224,19 @@ async function fetchOneQuote(symbol){
 }
 
 async function handleQuote(req, res, url){
-  const raw = (url.searchParams.get('symbols') || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
+  const raw = (url.searchParams.get('symbols') || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 30);
   if (!raw.length) return send(res, req, 400, { error: 'missing symbols param' });
   const out = {};
-  for (const symbol of raw){
+  await Promise.all(raw.map(async symbol => {
     const t0 = Date.now();
-    try { out[symbol] = await fetchOneQuote(symbol); logLine(`yahoo:${symbol}`, Date.now() - t0, 'OK'); }
-    catch(e){ out[symbol] = null; logError(`quote ${symbol}: ${e.message}`); }
-  }
+    try {
+      out[symbol] = await fetchOneQuote(symbol);
+      logLine(`yahoo:${symbol}`, Date.now() - t0, 'OK');
+    } catch(e){
+      out[symbol] = null;
+      logError(`quote ${symbol}: ${e.message}`);
+    }
+  }));
   send(res, req, 200, out);
 }
 
@@ -391,3 +400,6 @@ server.listen(PORT, HOST, () => {
   console.log(`[jarvis-relay] listening on http://${HOST}:${PORT} (personal use only, not reachable from the LAN)`);
   console.log(`[jarvis-relay] disk store at ${DATA_DIR} — irreplaceable data mirrors here, surviving browser-profile wipes`);
 });
+
+process.on('uncaughtException', err => logError(`uncaughtException: ${err?.message || err}`));
+process.on('unhandledRejection', reason => logError(`unhandledRejection: ${reason?.message || reason}`));

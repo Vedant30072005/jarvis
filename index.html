@@ -142,6 +142,25 @@
         <div class="kpi-row" id="kpiRow"></div>
 
         <div class="grid cc-grid">
+          <!-- LIVE STOCKS MONITOR -->
+          <article class="panel glass tilt sheen reveal cc-stocks">
+            <header class="panel-head">
+              <h3><svg class="ic"><use href="#i-bank"/></svg> LIVE STOCKS MONITOR</h3>
+              <div class="mirror-strip" style="margin:0;gap:8px">
+                <div class="region-toggle" id="stockRegionToggle" role="tablist" aria-label="Toggle stocks market region">
+                  <button class="region-btn active" data-sregion="india" role="tab" aria-selected="true"><span class="region-flag">🇮🇳</span> INDIAN STOCKS</button>
+                  <button class="region-btn" data-sregion="us" role="tab" aria-selected="false"><span class="region-flag">🇺🇸</span> US STOCKS</button>
+                </div>
+                <label class="search-box" style="height:34px;min-width:170px;margin:0" for="stockSearch">
+                  <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+                  <input id="stockSearch" type="search" placeholder="Search / add symbol…" autocomplete="off">
+                </label>
+                <button class="btn btn-ghost" id="btnStockRefresh" style="min-height:34px;padding:4px 12px;font-size:.65rem"><svg class="ic"><use href="#i-refresh"/></svg> REFRESH</button>
+              </div>
+            </header>
+            <div class="stock-cards-grid" id="stockCardsGrid"></div>
+          </article>
+
           <article class="panel glass tilt sheen reveal cc-radar">
             <header class="panel-head">
               <h3><svg class="ic"><use href="#i-target"/></svg> SECTOR RADAR</h3>

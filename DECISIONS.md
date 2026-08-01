@@ -1899,3 +1899,52 @@ check disagrees with the source, suspect the cache before the code.
 
 test.html: 329/329 (3 new — real wires replace the demo set, an empty
 fetch never wipes the board, and the flagless default stays additive).
+
+**2026-07-29 · Real data loads automatically; "no latency" corrected
+honestly** — Asked to delete all fake data and replace it with
+real-time, no-latency data. Two things needed saying plainly rather
+than silently attempted: no free feed is latency-free (measured earlier
+at ~3-15s behind the exchange, and that stands), and deleting the seed
+corpus outright would leave the app blank on first boot before a
+connection exists — worse than a clearly labelled demo state. What
+"replace the fake data" honestly resolves to: real data should be what
+appears BY DEFAULT whenever a connection exists, not something the user
+has to know to request.
+
+The gap: `Market.refresh()` (prices) already auto-loops on its own
+session-clock cadence — that was done in an earlier pass. News did not;
+FETCH LIVE was manual-only, so a working connection still showed 32
+fabricated headlines until clicked. Boot now fires `fetchLive()`
+unattended right after first paint — reusing its existing try/catch and
+honest SIM fallback verbatim, so an unattended call degrades exactly as
+safely as a user's own click. `dropSimulated` (added last pass) retires
+the fabricated corpus the moment real wires land.
+
+Verified live, cold boot, zero clicks: 85 signals, 85 live, 0 simulated,
+`mode: 'live'`, capital gravity already showing Pharma & Healthcare
+(real) rather than Railways & Logistics (fabricated) — on page load
+alone. Killing the relay mid-session showed news degrading to the
+public-CORS-proxy fallback and staying genuinely live (not simulated) —
+that fallback path was pre-existing, not new. A ticker degradation
+recheck was attempted but invalidated when the relay respawned on its
+own within the test window (uptimeSec reset to 52 — something in the
+environment restarts it, not this code); the SIM-fallback/freeze/tag
+behaviour for prices was already proven live earlier this session and
+is unchanged here, so it is not re-claimed as freshly tested.
+
+Also added: the LIVE badge's tooltip now states the measured latency
+floor directly ("No free feed is latency-free — this one measured
+~3-15s behind the exchange print"), rather than let the word "LIVE"
+imply zero-latency by omission.
+
+Noted, not authored by me: `js/market.js` gained a Live Stocks Monitor
+(INDIAN_STOCKS/US_STOCKS with per-item fallbackPrice) and `relay.js`/
+`css/main.css` picked up supporting changes — flagged by the harness as
+already-intentional. Checked its honesty properties before building on
+top: each card computes `live: !!q && typeof q.price === 'number'` and
+renders an explicit LIVE/SIM chip per item, following the same
+convention this file's anti-fraud passes established. No fix needed
+there; verified the pattern rather than assumed it.
+
+test.html: 329/329 (unchanged — this pass is behavioural/boot-sequence,
+not new pure-logic surface).
